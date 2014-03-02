@@ -236,7 +236,7 @@ public class Image
   TrackList tl = gdraw.trackList;
   for (int i = 0; i < tl.size(); i++)
   {
-   float width = 0.0f;
+   float width;
    TrackList.Track t0 = tl.get(i);
    float wx0 = (float) ((t0.ap.val1 * GDraw.SCALE) / scale);
    for (int j = i + 1; j < tl.size(); j++)
@@ -792,8 +792,10 @@ public class Image
    dbg.printf("dir %d %9s x %5d y %5d\n",d.ordinal()," ",x,y);
   }
 
-  if ((x <= 5)
-  ||  (y <= 5))
+  if ((x < 75)
+  ||  (y < 75)
+  ||  (x > (w0 - 75))
+  ||  (y > (h0 - 75)))
   {
    remove = true;
    if (dbgFlag)

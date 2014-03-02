@@ -46,7 +46,7 @@ public class GDraw
  float scale = 10.0f;
 
  public static final boolean CSV = false;
- public static final boolean DBG = false;
+ public static final boolean DBG = true;
 
  /**
   * Scale factor for converting interger input to correct position

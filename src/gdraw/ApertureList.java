@@ -113,7 +113,8 @@ public class ApertureList
  public class Aperture
  {
   int type;			/* aperture type */
-  int index;			/* aperturn number */
+  String typeStr;
+  int index;			/* aperture number */
   double val1;			/* size for round or width for rectangular */
   double val2;			/* height for rectangular */
   Circle c;
@@ -124,6 +125,7 @@ public class ApertureList
   public Aperture(int i, double v1)
   {
    type = ROUND;
+   typeStr = "r";
    index = i;
    val1 = v1;
    val2 = v1;
@@ -132,6 +134,7 @@ public class ApertureList
   public Aperture(int i, double v1, double v2)
   {
    type = SQUARE;
+   typeStr = "s";
    index = 1;
 
    val1 = v1;

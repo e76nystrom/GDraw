@@ -72,6 +72,7 @@ public class TrackList extends ArrayList<TrackList.Track>
   }
  }
 
+ /*
  public void draw(Image image)
  {
   if (dbgFlag)
@@ -84,6 +85,7 @@ public class TrackList extends ArrayList<TrackList.Track>
    image.draw(t);
   }
  }
+ */
 
  public class Track
  {
@@ -105,8 +107,8 @@ public class TrackList extends ArrayList<TrackList.Track>
    if (dbgFlag)
    {
     int len = (int) pt[0].dist(pt[1]);
-    dbg.printf("%3d x %6d y %6d " +
-	       "x %6d  y %6d %2d %4.3f l %6d\n",
+    dbg.printf("trk %3d x %6d y %6d " +
+	       "x %6d  y %6d ap %2d %4.3f l %6d\n",
 	       index,
 	       pt[0].x,pt[0].y,
 	       pt[1].x,pt[1].y,

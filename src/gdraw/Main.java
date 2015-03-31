@@ -14,6 +14,7 @@ public class Main
  /**
   * @param args the command line arguments
   */
+ @SuppressWarnings({"DeadBranch", "UnusedAssignment"})
  public static void main(String[] args)
  {
   String inputFile = "";
@@ -43,11 +44,15 @@ public class Main
 //   inputFile = "c:\\Development\\Circuits\\Power Connector\\Relay_b.gbr";
 //   inputFile = "c:\\Development\\Circuits\\RLB\\RLB_t.gbr";
 //   inputFile = "c:\\Development\\Circuits\\Gear Control 1\\BreakOut_b.gbr";
-   inputFile = "c:\\Development\\Circuits\\Battery\\Reset\\Reset_b.gbr";
+//   inputFile = "c:\\Development\\Circuits\\Battery\\Reset\\Reset_b.gbr";
+//   inputFile = "c:\\Development\\Circuits\\CNC\\Relay\\RelayH1_b.gbr";
+//   inputFile = "c:\\Development\\Circuits\\cnc\\Mega32\\Mega32_t.gbr";
+//   inputFile = "c:\\Development\\Circuits\\Gear Control 1\\Gear_t.gbr";
+   inputFile = "c:\\Development\\Circuits\\CNC\\Vfd_Ctl\\VFDControl3_t.gbr";
    if (false)
    {
     mirror = true;
-    ySize = 1.689;
+    ySize = 2.213;
    }
 /*
 */
@@ -55,7 +60,7 @@ public class Main
 
   if (inputFile.length() != 0)
   {
-   System.out.printf("gdraw 02/26/2014\n");
+   System.out.printf("gdraw 03/30/2015\n");
    System.out.printf("Processing %s", inputFile);
    if (mirror)
    {

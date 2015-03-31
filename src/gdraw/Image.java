@@ -48,6 +48,7 @@ public class Image
  float ncScale;
  Seg seg;
  SegList segList;
+ boolean trackError = false;
 
  public static final int BACKGROUND = new Color(0xe0,0xff,0xff).getRGB();
  public static final int GRID       = new Color(0xe0,0x00,0xff).getRGB();
@@ -187,6 +188,7 @@ public class Image
   }
  }
 
+/*
  public void draw(TrackList.Track track)
  {
   g.setColor(Color.BLACK);
@@ -213,7 +215,9 @@ public class Image
    dbg.flush();
   }
  }
+*/
 
+/*
  public void testDraw()
  {
   float w = 30.0F;
@@ -225,6 +229,7 @@ public class Image
   p.lineTo(2000F,75F);
   g.draw(p);
  }
+*/
 
  public void drawTracks()
  {
@@ -243,13 +248,14 @@ public class Image
    {
     TrackList.Track t1 = tl.get(j);
     float w1 = (float) ((t1.ap.val1 * GDraw.SCALE) / scale);
-    width = (wx0 < w1) ? wx0 : w1;
-/*
-    if (width <= 20)
+//    width = (wx0 < w1) ? wx0 : w1;
+    width = w1;
+
+    if (width <= 20.0)
     {
-     width = (float) 3.0;
+     width = (float) 1.0;
     }
-*/
+
     if (t0.pt[0].equals(t1.pt[0]))
     {
      if (dbgFlag)
@@ -283,6 +289,12 @@ public class Image
      dr(width,t0.pt[0],t0.pt[1],t1.pt[0]);
     }
    }
+
+   if (wx0 <= 20.0)
+   {
+    wx0 = (float) 1.0;
+   }
+
    if (dbgFlag)
    {
     dbg.printf("trk %3d x0 %5d y0 %5d x1 %5d y1 %5d w %3.0f\n",t0.index,
@@ -338,56 +350,55 @@ public class Image
    dbg.printf("\nAdjacent Pads\n\n");
   }
   image.getRGB(0,0,w0,h0,data,0,w0);
+  BasicStroke stroke = new BasicStroke(1,BasicStroke.CAP_ROUND,
+				       BasicStroke.JOIN_MITER);
+  g.setStroke(stroke);
   g.setColor(Color.BLACK);
 
-  int maxDist = (int) (GDraw.SCALE * .120);
-  int minDist = (int) (GDraw.SCALE * .085);
+  int maxDist = (int) (GDraw.SCALE * .125);
+  int minDist = (int) (GDraw.SCALE * .075);
 
   PadList pList = gdraw.padList;
   for (int i = 0; i < pList.size() - 1; i++)
   {
    int dist;
-   boolean flag;
+   boolean vertical;
    PadList.Pad pi = pList.get(i);
    for (int j = i + 1; j < pList.size(); j++)
    {
-    boolean swap = false;
     PadList.Pad pj = pList.get(j);
+    if (pi.ap.type != pj.ap.type)
+    {
+     continue;
+    }
 
     if (pi.pt.x == pj.pt.x)
     {
      dist = pj.pt.y - pi.pt.y;
-     flag = true;
-     if (dbgFlag)
-     {
-      dbg.printf("pad v %3d %3d x %6d yi %6d yj %6d dist %6d %5.3f %5.3f\n",
-		 pi.index,pj.index,pi.pt.x,pi.pt.y,pj.pt.y,dist,
-		 pi.ap.val2,pj.ap.val2);
-     }
+     vertical = true;
     }
     else if (pi.pt.y == pj.pt.y)
     {
      dist = pj.pt.x - pi.pt.x;
-     flag = false;
-     if (dbgFlag)
-     {
-      dbg.printf("pad h %3d %3d y %6d xi %6d xj %6d dist %6d %5.3f %5.3f\n",
-		 pi.index,pj.index,pi.pt.y,pi.pt.x,pj.pt.x,dist,
-		 pi.ap.val1,pj.ap.val1);
-     }
+     vertical = false;
     }
     else
     {
      continue;
     }
 
+    PadList.Pad p0;
+    PadList.Pad p1;
     if (dist < 0)
     {
      dist = -dist;
-     swap = true;
-     PadList.Pad pTmp = pi;
-     pi = pj;
-     pj = pTmp;
+     p0 = pj;
+     p1 = pi;
+    }
+    else
+    {
+     p0 = pi;
+     p1 = pj;
     }
 
     if ((dist >= minDist)
@@ -395,19 +406,31 @@ public class Image
     {
      int x;
      int y;
-     if (flag)
+     if (vertical)
      {
-      x = pi.pt.x;
-      int yi = pi.pt.y + (int) (pi.ap.val2 * GDraw.SCALE / 2);
-      int yj = pj.pt.y - (int) (pj.ap.val2 * GDraw.SCALE / 2);
-      y = ((yj - yi) / 2) + yi;
+      if (dbgFlag)
+      {
+       dbg.printf("pad v %3d %3d x %6d yi %6d yj %6d dist %6d %5.3f %s %5.3f %s\n",
+		  p0.index,p1.index,p0.pt.x,p0.pt.y,p1.pt.y,dist,
+		  p0.ap.val1,p0.ap.typeStr,p1.ap.val1,p1.ap.typeStr);
+      }
+      x = p0.pt.x;
+      int y0 = p0.pt.y + (int) (p0.ap.val2 * GDraw.SCALE / 2);
+      int y1 = p1.pt.y - (int) (p1.ap.val2 * GDraw.SCALE / 2);
+      y = ((y1 - y0) / 2) + y0;
      }
      else
      {
-      int xi = pi.pt.x + (int) (pi.ap.val1 * GDraw.SCALE / 2);
-      int xj = pj.pt.x - (int) (pj.ap.val1 * GDraw.SCALE / 2);
-      x = ((xj - xi) / 2) + xi;
-      y = pi.pt.y;
+      if (dbgFlag)
+      {
+       dbg.printf("pad h %3d %3d y %6d xi %6d xj %6d dist %6d %5.3f %s %5.3f %s\n",
+		  p0.index,p1.index,p0.pt.y,p0.pt.x,p1.pt.x,dist,
+		  p0.ap.val1,p0.ap.typeStr,p1.ap.val1,p1.ap.typeStr);
+      }
+      int x0 = p0.pt.x + (int) (p0.ap.val1 * GDraw.SCALE / 2);
+      int x1 = p1.pt.x - (int) (p1.ap.val1 * GDraw.SCALE / 2);
+      x = ((x1 - x0) / 2) + x0;
+      y = p0.pt.y;
      }
 
      x = (int) (x / scale);
@@ -417,59 +440,389 @@ public class Image
      int w;
      int h;
 
-     if (data[i0] == BACKGROUND)
+     if (dbgFlag)
      {
-      if ((pi.ap.type == ApertureList.Aperture.SQUARE)
-      &&  (pj.ap.type == ApertureList.Aperture.SQUARE))
+      dbg.printf("check x %6d y %6d\n",x,y);
+     }
+     if (p0.ap.type == ApertureList.Aperture.SQUARE)
+     {
+      if (data[i0] == BACKGROUND)
       {
+       if (dbgFlag)
+       {
+	dbg.printf("r x %6d y %6d\n",x,y);
+       }
 //       if (((dist >= 1100) && (dist <= 1110))
 //       ||  ((dist >= 890) && (dist <= 920)))
        {
-	if (flag)
+	if (vertical)
 	{
-	 w = (int) (pi.ap.val1 * GDraw.SCALE);
-	 h = dist - (int) ((pi.ap.val2 + .010) * GDraw.SCALE);
+	 w = (int) (p0.ap.val1 * GDraw.SCALE);
+	 h = dist - (int) ((p0.ap.val2 + .010) * GDraw.SCALE);
 	}
 	else
 	{
-	 w = dist - (int) ((pi.ap.val1 + .010) * GDraw.SCALE);
-	 h = (int) (pi.ap.val2 * GDraw.SCALE);
+	 w = dist - (int) ((p0.ap.val1 + .010) * GDraw.SCALE);
+	 h = (int) (p0.ap.val2 * GDraw.SCALE);
 	}
 	w = (int) (w / scale);
 	h = (int) (h / scale);
-	g.fillRect(x - w / 2,y - h / 2,w,h);
+	if (checkRect(x - w / 2,y - h / 2,w,h))
+	{
+	 g.fillRect(x - w / 2,y - h / 2,w,h);
+	}
 	if (dbgFlag)
 	{
-	 dbg.printf("rec %3d x %5d y %5d w %3d h %3d\n",pi.index,x,y,w,h);
+	 dbg.printf("rec %3d x %5d y %5d w %3d h %3d\n",p0.index,x,y,w,h);
 	}
        }
       }
-//      else if ((pi.ap.type == ApertureList.Aperture.ROUND)
-//      &&       (pj.ap.type == ApertureList.Aperture.ROUND))
-//      {
-//       if (false)
-//       {
-//	if (flag)
-//	{
-//	 w = (int) (pi.ap.val1 * GDraw.SCALE * .25 / scale);
-//	 h = 7;
-//	}
-//	else
-//	{
-//	 w = 7;
-//	 h = (int) (pi.ap.val1 * GDraw.SCALE * .25 / scale);
-//	}
-//	g.fillRect(x - w / 2,y - h / 2,w,h);
-//	dbg.printf("rnd %3d x %5d y %5d w %3d h %3d\n",pi.index,x,y,w,h);
-//       }
-//      }
+     }
+     else if (p0.ap.type == ApertureList.Aperture.ROUND)
+     {
+      if (dbgFlag)
+      {
+       dbg.printf("c x %6d y %6d\n",x,y);
+      }
+      double minAperture = p0.ap.val1;
+      if (p1.ap.val1 < minAperture)
+      {
+       minAperture = p1.ap.val1;
+      }
+      int r = (int) ((minAperture * GDraw.SCALE / scale) / 2);
+      if (vertical)
+      {
+       padVertLine(x - r,y,r);
+       padVertLine(x + r,y,r);
+      }
+      else
+      {
+       padHorizLine(x,y - r,r);
+       padHorizLine(x,y + r,r);
+      }
+     }
+     if (dbgFlag)
+     {
+      dbg.printf("\n");
      }
     }
    }
   }
  }
 
- public void process()
+ public boolean checkRect(int x0, int y0, int w, int h)
+ {
+  int x1 = x0 + w;
+  int y1 = y0 + h;
+  for (int y = y0; y <= y1; y++)
+  {
+   int i0 = x0 + y * w0;
+   for (int x = x0; x <= x1; x++, i0++)
+   {
+    if (data[i0] != BACKGROUND)
+     return(false);
+   }
+  }
+  return(true);
+ }
+
+ public void padVertLine(int x, int y, int limit)
+ {
+  int max;
+  for (max = 0; max < limit; max++)
+  {
+   int i0 = x + (y + max) * w0;
+   if ((data[i0] != BACKGROUND)
+   ||  (data[i0 - 1] != BACKGROUND)
+   ||  (data[i0 + 1] != BACKGROUND))
+   {
+    break;
+   }
+  }
+
+  int min;
+  for (min = 0; min < limit; min++)
+  {
+   int i0 = x + (y - min) * w0;
+   if ((data[i0] != BACKGROUND)
+   ||  (data[i0 - 1] != BACKGROUND)
+   ||  (data[i0 + 1] != BACKGROUND))
+   {
+    break;
+   }
+  }
+  if (max != 0)
+  {
+   g.drawLine(x,y - (min - 3),x,y + (max - 3));
+  }
+ }
+
+ public void padHorizLine(int x, int y, int limit)
+ {
+  int max;
+  for (max = 0; max < limit; max++)
+  {
+   int i0 = (x + max) + y * w0;
+   if ((data[i0] != BACKGROUND)
+   ||  (data[i0 - w0] != BACKGROUND)
+   ||  (data[i0 + w0] != BACKGROUND))
+   {
+    break;
+   }
+  }
+
+  int min;
+  for (min = 0; min < limit; min++)
+  {
+   int i0 = (x - min) + y * w0;
+   if ((data[i0] != BACKGROUND)
+   ||  (data[i0 - w0] != BACKGROUND)
+   ||  (data[i0 + w0] != BACKGROUND))
+   {
+    break;
+   }
+  }
+  if (max != 0)
+  {
+   g.drawLine(x - (min - 3),y,x + (max - 3),y);
+  }
+ }
+
+ public void padTrack()
+ {
+  if (dbgFlag)
+  {
+   dbg.printf("\nPads near Tracks\n\n");
+  }
+  g.setColor(Color.BLACK);
+  BasicStroke stroke = new BasicStroke(1,BasicStroke.CAP_ROUND,
+				       BasicStroke.JOIN_MITER);
+  g.setStroke(stroke);
+
+  PadList pList = gdraw.padList;
+  for (PadList.Pad pad : pList)
+  {
+   Pt pt = pad.pt;
+   TrackList tl = gdraw.trackList;
+   for (TrackList.Track trk : tl)
+   {
+    Pt p0 = trk.pt[0];
+    Pt p1 = trk.pt[1];
+    boolean flag = false;
+    boolean vertical = false;
+    boolean oblique = false;
+    int dist = 0;
+    String dir;
+    if (p0.x == p1.x)		/* if vertical */
+    {
+     dir= "v";
+     vertical = true;
+     if (p0.y < p1.y)
+     {
+      if ((pt.y > p0.y)
+              &&  (pt.y < p1.y))
+      {
+       flag = true;
+      }
+     }
+     else
+     {
+      if ((pt.y > p1.y)
+              &&  (pt.y < p0.y))
+      {
+       flag = true;
+      }
+     }
+     if (flag)
+     {
+      dist = (int) ((pt.x - p0.x) / scale);
+     }
+    }
+    else if (p0.y == p1.y)	/* if horizontal */
+    {
+     dir = "h";
+     if (p0.x < p1.x)
+     {
+      if ((pt.x > p0.x)
+              &&  (pt.x < p1.x))
+      {
+       flag = true;
+      }
+     }
+     else
+     {
+      if ((pt.x > p1.x)
+              &&  (pt.x < p0.x))
+      {
+       flag = true;
+      }
+     }
+     if (flag)
+     {
+      dist = (int) ((pt.y - p0.y) / scale);
+     }
+    }
+    else
+    {
+     dir = "o";
+     vertical = false;
+     oblique = true;
+    }
+    if (flag)
+    {
+     int tmp = dist;
+     if (tmp < 0)
+     {
+      tmp = -tmp;
+     }
+
+     if (tmp <= 75)
+     {
+      String ap;
+      if (pad.ap.type == ApertureList.Aperture.ROUND)
+      {
+       ap = "C";
+      }
+      else
+      {
+       ap = "R";
+      }
+      if (dbgFlag)
+      {
+       dbg.printf("pad %3d %s x %6d y %6d  trk %3d (%6d,%6d) (%6d,%6d) %s dist %6d\n",
+               pad.index,ap,pt.x,pt.y,
+               trk.index,p0.x,p0.y,p1.x,p1.y,dir,dist);
+      }
+      if (pad.ap.type == ApertureList.Aperture.ROUND)
+      {
+       int r = (int) ((pad.ap.val1 * GDraw.SCALE / scale) / 2);
+       int x = (int) (pt.x / scale);
+       int y = (int) (pt.y / scale);
+       if (vertical)
+       {
+        padTrackVert(x,y - r,dist);
+        padTrackVert(x,y + r,dist);
+       }
+       else
+       {
+        padTrackHoriz(x - r,y,dist);
+        padTrackHoriz(x + r,y,dist);
+       }
+       if (dbgFlag)
+       {
+        dbg.printf("\n");
+       }
+      }
+     }
+    }
+   }
+  }
+ }
+
+ void padTrackVert(int x, int y, int dist)
+ {
+  if (dbgFlag)
+  {
+   dbg.printf("x %6d y %6d dist %6d\n",x,y,dist);
+  }
+  int dir = -1;
+  int limit = dist;
+  if (dist < 0)
+  {
+   dir = 1;
+   limit = -limit;
+  }
+  int start;
+  for (start = 0; start < limit; start++)
+  {
+   int i0 = (x + start * dir) + y * w0;
+   if ((data[i0] == BACKGROUND)
+   &&  (data[i0 - w0] == BACKGROUND)
+   &&  (data[i0 + w0] == BACKGROUND))
+   {
+    break;
+   }
+  }
+  start += 3;
+
+  int end;
+  for (end = start; end < limit; end++)
+  {
+   int i0 = (x + end * dir) + y * w0;
+   if ((data[i0] != BACKGROUND)
+   ||  (data[i0 - w0] != BACKGROUND)
+   ||  (data[i0 + w0] != BACKGROUND))
+   {
+    break;
+   }
+  }
+  end -= 3;
+  if (true)
+  {
+   g.drawLine(x + (start * dir),y,x + (end * dir),y);
+  }
+ }
+
+ void padTrackHoriz(int x, int y, int dist)
+ {
+  if (dbgFlag)
+  {
+   dbg.printf("x %6d y %6d dist %6d\n",x,y,dist);
+  }
+  int dir = -1;
+  int limit = dist;
+  if (dist < 0)
+  {
+   dir = 1;
+   limit = -limit;
+  }
+  int start;
+  for (start = 0; start < limit; start++)
+  {
+   int i0 = x + (y + (start * dir)) * w0;
+//   if (dbgFlag)
+//   {
+//    dbg.printf("s x %6d y %6d i0 %10d\n",x,y + (start * dir),i0);
+//    dbg.flush();
+//   }
+   if ((data[i0] == BACKGROUND)
+   &&  (data[i0 - 1] == BACKGROUND)
+   &&  (data[i0 + 1] == BACKGROUND))
+   {
+    break;
+   }
+  }
+  start += 3;
+
+//  if (dbgFlag)
+//  {
+//   dbg.printf("\n");
+//  }
+
+  int end;
+  for (end = start; end < limit; end++)
+  {
+   int i0 = x + (y + (end * dir)) * w0;
+//   if (dbgFlag)
+//   {
+//    dbg.printf("e x %6d y %6d i0 %10d\n",x,y + (end * dir),i0);
+//    dbg.flush();
+//   }
+   if ((data[i0] != BACKGROUND)
+   ||  (data[i0 - 1] != BACKGROUND)
+   ||  (data[i0 + 1] != BACKGROUND))
+   {
+    break;
+   }
+  }
+  end -= 3;
+  if (true)
+  {
+   g.drawLine(x,y + start * dir,x,y + end * dir);
+  }
+ }
+
+ public void process() throws Exception
  {
   image.getRGB(0,0,w0,h0,data,0,w0);
 
@@ -653,7 +1006,9 @@ public class Image
     gdraw.csv.printf("\"Name\",\"X\",\"Y\"\n");
     gdraw.csv.printf("\"\",0,0\n");
    }
+
    dist = 0.0;
+   dbg.printf("\noutput NC path\n\n");
    for (int i = 1; i < segs.length; i++)
    {
     seg = segs[i];
@@ -664,6 +1019,14 @@ public class Image
      gdraw.csv.printf("\"%d\",%d,%d\n",
 		      i,(int) (x * ncScale),(int) (y * ncScale));
     }
+    if (dbgFlag)
+    {
+     dbg.printf("\nseg %4d len %3d x %6.3f y %6.3f\n\n",seg.num,seg.size(),seg.x,seg.y);
+     for (String seg1 : seg)
+     {
+      dbg.printf("%s", seg1);
+     }
+    }
     dist += Math.hypot(x - xCur,y - yCur);
     Line2D shape = new Line2D.Float((float) (xCur * ncScale),
 				    (float) (yCur * ncScale),
@@ -672,9 +1035,9 @@ public class Image
     g.draw(shape);
     xCur = x;
     yCur = y;
-    for (int j = 0; j < seg.size(); j++)
+    for (String seg1 : seg)
     {
-     out.printf("%s",seg.get(j));
+     out.printf("%s", seg1);
     }
    }
   }
@@ -722,10 +1085,10 @@ public class Image
   write(data,gdraw.baseFile);
  }
 
- public boolean track(int[] data, int i0)
+ public boolean track(int[] data, int i0) throws Exception
  {
   boolean remove = false;
-  seg = new Seg();
+  seg = new Seg(segNum);
   segList.add(seg);
 
   int x = i0 % w0;
@@ -1114,14 +1477,18 @@ public class Image
 	      startIndex,startIndex % w0,startIndex / w0,i0,x,y,tmp);
    dbg.flush();
   }
+
   if (tmp != 0)
   {
+   data[startIndex] = STRERR;
+   data[i0] = TRKERR;
    if (dbgFlag)
    {
     dbg.printf("track error seg %d\n",segNum);
+    trackError = true;
+//    System.err.printf("track error\n");
    }
-   data[startIndex] = STRERR;
-   data[i0] = TRKERR;
+//   return(false);
   }
   else
   {
@@ -1139,9 +1506,13 @@ public class Image
    out.flush();
   }
 
-  if (remove
-  ||  (seg.size() == 4))
+  if (remove)
+//  ||  (seg.size() == 4))
   {
+   if (dbgFlag)
+   {
+    dbg.printf("remove segment\n");
+   }
    segList.remove(seg);
   }
   return(true);
@@ -1160,11 +1531,11 @@ public class Image
 
  public void write(String f)
  {
-  File file = new File(f + ".bmp");
+  File file = new File(f + ".png");
 
   try
   {
-   ImageIO.write(image,"bmp",file);
+   ImageIO.write(image,"png",file);
   }
   catch (IOException e)
   {
@@ -1174,12 +1545,22 @@ public class Image
 
  public class Seg extends ArrayList<String>
  {
+  int num;
   double x;
   double y;
 
   public Seg()
   {
    super();
+   num = -1;
+   x = 0;
+   y = 0;
+  }
+
+  public Seg(int num)
+  {
+   super();
+   this.num = num;
    x = 0;
    y = 0;
   }

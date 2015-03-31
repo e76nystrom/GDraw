@@ -93,7 +93,8 @@ public class Circle
    }
    s3--;
   }
-  if (dbgFlag)
+  if (dbgFlag
+  &&  (maxPt != null))
   {
    dbg.printf("maxerr x %3d y %3d %6.4f\n",maxPt.x,maxPt.y,maxErr);
   }
@@ -101,9 +102,9 @@ public class Circle
 
  public void fill(int data[], int w, int xCen, int yCen)
  {
-  for (int i = 0; i < pt.size(); i++)
+  for (Pt pt1 : pt)
   {
-   p = pt.get(i);
+   p = pt1;
    int i0 = (yCen + p.y) * w + xCen;
    int i1 = (yCen - p.y) * w + xCen;
    if (i1 < 0)
@@ -164,9 +165,9 @@ public class Circle
   int i0;
   int i0Prev = (yCen + p.y) * image.w0 + xCen + p.x;
 
-  for (int i = 0; i < pt0.length; i++)
+  for (Pt pt01 : pt0)
   {
-   p = pt0[j0];
+   p = pt01;
    i0 = (yCen + p.y) * image.w0 + xCen + p.x;
    if (image.data[i0] != EDGE)
    {
@@ -176,7 +177,6 @@ public class Circle
     }
     return(i0Prev);
    }
-
    j0++;
    if (j0 >= pt0.length)
    {
@@ -196,15 +196,15 @@ public class Circle
   int xCen = (int) (pt.x / image.scale);
   int yCen = (int) (pt.y / image.scale);
 
-  for (int i = 0; i < pt0.length; i++)
+  for (Pt pt01 : pt0)
   {
-   p = pt0[i];
+   p = pt01;
    int i0 = (yCen + p.y) * image.w0 + xCen + p.x;
    image.data[i0] = Image.PATH;
   }
  }
 
- public int markArc(Image image, Pt pt, int x, int y)
+ public int markArc(Image image, Pt pt, int x, int y) throws Exception
  {
   int xCen = (int) (pt.x / image.scale);
   int yCen = (int) (pt.y / image.scale);
@@ -243,7 +243,7 @@ public class Circle
   int i0;
   int i0Prev = (yCen + p.y) * image.w0 + xCen + p.x;
 
-  for (int i = 0; i < pt0.length; i++)
+  for (Pt pt01 : pt0)
   {
    p = pt0[j0];
    i0 = (yCen + p.y) * image.w0 + xCen + p.x;

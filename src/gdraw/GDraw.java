@@ -47,6 +47,7 @@ public class GDraw
 
  public static final boolean CSV = false;
  public static final boolean DBG = true;
+ public static final double BIT_RADIUS = .010;
 
  /**
   * Scale factor for converting interger input to correct position
@@ -143,7 +144,7 @@ public class GDraw
   if (fIn.isFile())
   {
    readInput();
-   apertureList.addBitRadius(0.010);
+   apertureList.addBitRadius(BIT_RADIUS);
 
    apertureList.print();
    padList.print();
@@ -157,7 +158,17 @@ public class GDraw
    image = new Image(this,xMax,yMax,scale);
 
    image.getData();
-   padList.draw(image);
+   try
+   {
+    padList.draw(image);
+   }
+   catch (Exception e)
+   {
+    image.setData();
+    image.write(image.data,baseFile + "00");
+    closeFiles();
+    return;
+   }
    image.setData();
 
 //   trackList.draw(image);
@@ -165,12 +176,23 @@ public class GDraw
 
    image.drawTracks();
 
-//   image.adjacentPads();
+   image.adjacentPads();
+   image.padTrack();
 
 //   image.getData();
 //   padList.check(image);
 
+   try
+   {
     image.process();
+   }
+   catch (Exception e)
+   {
+    image.setData();
+    image.write(image.data,baseFile + "00");
+    closeFiles();
+    return;
+   }
 
    closeFiles();
   }
@@ -183,7 +205,7 @@ public class GDraw
   */
  private void openFiles(String inputFile)
  {
-  if (inputFile.indexOf(".") < 0)
+  if (!inputFile.contains("."))
   {
    inputFile += ".gbr";
   }
@@ -274,8 +296,8 @@ public class GDraw
   {
    out.printf("#4 = 1      (mirror)\n");
   }
-  out.printf("#5 = 7.0     (linear feed rate)\n");
-  out.printf("#6 = 3.0     (circle feed rate)\n");
+  out.printf("#5 = 14.0     (linear feed rate)\n");
+  out.printf("#6 = 14.0     (circle feed rate)\n");
 
   out.printf("g0 z0.500        (move tool above clamps)\n");
   out.printf("g0 x0.250 y0.250 (move tool away from clamps)\n");
@@ -366,7 +388,7 @@ public class GDraw
       if (dCode == 1)
       {
        trackList.add(new Pt(lastX, lastY),
-               new Pt(xVal, yVal), currentAperture);
+		     new Pt(xVal, yVal), currentAperture);
        lastX = xVal;
        lastY = yVal;
        int x = xVal + apW;
@@ -387,6 +409,11 @@ public class GDraw
       }
       else if (dCode == 3)
       {
+       if ((xVal < 0)
+       ||  (yVal < 0))
+       {
+	System.out.printf("negative\n");
+       }
        padList.add(new Pt(xVal, yVal), currentAperture);
        int x = xVal + apW;
        if (x > xMax)
@@ -589,6 +616,10 @@ public class GDraw
     val += c - '0';
     c = b[pos++];
    }
+   if (val < 0)
+   {
+    System.out.printf("negative\n");
+   }
    return (val);
   }
 
@@ -620,7 +651,12 @@ public class GDraw
      s += (char) c;
     } else
     {
-     return (Double.valueOf(s));
+     double tmp = Double.valueOf(s);
+     if (tmp < 0.0)
+     {
+      System.out.printf("negatve value %f\n",tmp);
+     }
+     return (tmp);
     }
     c = b[pos++];
    }

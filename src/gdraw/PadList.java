@@ -53,7 +53,7 @@ public class PadList extends ArrayList<PadList.Pad>
   return(null);
  }
 
- public void draw(Image image)
+ public void draw(Image image) throws Exception
  {
   if (dbgFlag)
   {
@@ -62,7 +62,11 @@ public class PadList extends ArrayList<PadList.Pad>
   for (int i = 0; i < max; i++)
   {
    Pad p = get(i);
-   image.draw(p);
+   if ((p.pt.x >= 0)
+   ||  (p.pt.y >= 0))
+   {
+    image.draw(p);
+   }
   }
  }
 
@@ -119,6 +123,43 @@ public class PadList extends ArrayList<PadList.Pad>
   public boolean connected(Pt p0)
   {
    return(ap.connected(pt,p0));
+  }
+
+  /**
+   * Determine distance between point and line.
+   * 
+   * @param pt0 first end point of line
+   * @param pt1 second end point of line
+   * @return distance between point and line
+   */
+  public int lineDistance(Pt pt0, Pt pt1)
+  {
+   double xdel = pt1.x - pt0.x;
+   double ydel = pt1.y - pt0.y;
+   double mag = Math.sqrt(xdel * xdel + ydel * ydel);
+
+   double u = ((pt.x - pt0.x) * (pt1.x - pt0.x) +
+	       (pt.y - pt0.y) * (pt1.y - pt0.y)) / (mag * mag);
+
+   if ((u < 0.0) || u > 1.0)
+    return(9999);
+
+   int xt = (int) (pt1.x + u * (pt1.x - pt0.x));
+   int yt = (int) (pt1.y + u * (pt1.y - pt0.y));
+
+   xdel = xt - pt.x;
+   ydel = yt - pt.y;
+   double d = Math.sqrt(xdel * xdel + ydel * ydel);
+
+//   if (d < TrackList.MIN_DIST)
+//   {
+//    dbg.printf("%3d x %6d y %6d " + 
+//	       "pt0.x %6d pt0.y %6d " +
+//	       "pt1.x %6d pt1.y %6d " +
+//	       "xt %6d yt %6d d %f\n",
+//	       i1,x,y,pt0.x,pt0.y,pt1.x,pt1.y,xt,yt,d);
+//   }
+   return((int) Math.floor(d));
   }
 
   public void print(PrintWriter dbg)

@@ -6,19 +6,22 @@ package gdraw;
 
 import gdraw.Util.Pt;
 
-import java.io.File;
-import java.io.FileReader;
 import java.io.BufferedReader;
-import java.io.FileWriter;
 import java.io.BufferedWriter;
-import java.io.PrintWriter;
-import java.io.IOException;
+import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 
+import java.util.Collections;
 import java.util.Date;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import Dxf.Dxf;
 
 /*
  * GDraw.java
@@ -30,6 +33,10 @@ import java.util.regex.Pattern;
  */
 public class GDraw
 {
+ boolean rotate = false;
+ boolean mirror = false;
+ int ySize = 0;
+ int xSize = 0;
  File fIn;
  PrintWriter out;
  PrintWriter dbg = null;
@@ -39,14 +46,18 @@ public class GDraw
  TrackList trackList;
  PadList padList;
  Image image;
- boolean mirror = false;
- int ySize = 0;
  int xMax = 0;
  int yMax = 0;
  float scale = 10.0f;
+ Dxf d = null;
+ boolean dbgFlag;
+ String tracks = "tracks";
+ String trackNum = "trackNum";
+ String pads = "pads";
+ String padNum = "padNum";
+ boolean dxf = false;
 
  public static final boolean CSV = false;
- public static final boolean DBG = true;
  public static final double BIT_RADIUS = .010;
 
  /**
@@ -55,32 +66,167 @@ public class GDraw
  public static final double SCALE = 10000.0;
 
  /**
-  * Opens the input file, output files, and creates all the classes to process
-  * a gerber file.
+  * Empty constructor
   *  
-  * @param inputFile
-  * @param m
-  * @param y
   */
- public GDraw(String inputFile, boolean m, double y)
+ public GDraw()
  {
-  mirror = m;
-  ySize = (int) (y * SCALE);
-  openFiles(inputFile);
-  apertureList = new ApertureList(this);
-  trackList = new TrackList(this);
-  padList = new PadList(this);
  }
 
  /**
-  * Enables creating a mirror image of the output file.
-  * 
-  * @param y the size to use for creating the mirror image
+  * Process a gerber file
+  *
+  * @param inputFile
+  * @param r
+  * @param m
+  * @param x
+  * @param y
+  * @param debug
+  * @param dxfFlag
+  * @param bmp
   */
- public void setMirror(double y)
+ public void process(String inputFile, boolean r, boolean m, double x, double y,
+		     boolean debug, boolean dxfFlag, boolean bmp)
  {
-  mirror = true;
+  rotate = r;
+  mirror = m;
+  xSize = (int) (x * SCALE);
   ySize = (int) (y * SCALE);
+  dxf = dxfFlag;
+  openFiles(inputFile,debug);
+  apertureList = new ApertureList(this);
+  trackList = new TrackList(this);
+  padList = new PadList(this);
+
+  if (fIn.isFile())
+  {
+   readInput();
+
+   if (rotate)
+   {
+    if (dbgFlag)
+    {
+     dbg.printf("\nrotate\n");
+    }
+    int tmp;
+    tmp = xMax;
+    xMax = yMax;
+    yMax = tmp;
+    apertureList.rotate();
+    padList.rotate(xMax);
+    trackList.rotate(xMax);
+   }
+
+   if (mirror)
+   {
+    if (dbgFlag)
+    {
+     dbg.printf("\nmirror\n\n");
+    }
+    padList.mirror(xSize,ySize);
+    trackList.mirror(xSize,ySize);
+   }
+
+   apertureList.addBitRadius(BIT_RADIUS);
+
+   apertureList.print();
+
+   Collections.sort(padList);
+   int i = 0;
+   for (PadList.Pad pad : padList)
+   {
+    pad.gIndex = pad.index;
+    pad.index = i++;
+    if (dxf)
+    {
+     double tx = pad.pt.x / SCALE;
+     double ty = pad.pt.y / SCALE;
+     double w = pad.ap.val1 / 2.0;
+     d.setLayer(pads);
+     if (pad.ap.type == ApertureList.Aperture.ROUND)
+     {
+      d.circle(tx,ty,w);
+     }
+     else if (pad.ap.type == ApertureList.Aperture.SQUARE)
+     {
+      double h = pad.ap.val2 / 2.0;
+      d.rectangle(tx - w,ty - h,tx + w,ty + h);
+     }
+     d.setLayer(padNum);
+     d.text(tx + w + .003,ty + .005,.010,String.format("%d",pad.index));
+    }
+   }
+   padList.print();
+
+   Collections.sort(trackList);
+   i = 0;
+   for (TrackList.Track track : trackList)
+   {
+    track.gIndex = track.index;
+    track.index = i++;
+    if (dxf)
+    {
+     double tx0 = track.pt[0].x / SCALE;
+     double ty0 = track.pt[0].y / SCALE;
+     double tx1 = track.pt[1].x / SCALE;
+     double ty1 = track.pt[1].y / SCALE;
+     d.setLayer(tracks);
+     d.line(tx0,ty0,tx1,ty1);
+     d.setLayer(trackNum);
+     d.text(tx0 + (tx1 - tx0) / 2 + .005,ty0 + (ty1 - ty0) / 2 + .005,.010,
+	    String.format("%d",track.index));
+    }
+   }
+   trackList.print();
+
+   xMax = (int) (xMax / scale);
+   yMax = (int) (yMax / scale);
+//   xMax += 2;
+//   yMax += 1;
+   System.out.printf("x max %4d y max %4d\n",xMax,yMax);
+   image = new Image(this,xMax,yMax,scale);
+
+   image.getData();
+   try
+   {
+    padList.draw(image);
+   }
+   catch (Exception e)
+   {
+    System.err.printf("failure\n");
+    image.setData();
+    image.write(image.data,baseFile + "00");
+    closeFiles();
+    return;
+   }
+   image.setData();
+
+   image.drawTracks();
+
+   image.getData();
+   image.adjacentPads(false);
+   image.getData();
+   image.adjacentPads(true);
+   image.adjacentFix();
+   image.padTrack();
+
+//   image.getData();
+//   padList.check(image);
+
+   try
+   {
+    image.process(bmp);
+   }
+   catch (Exception e)
+   {
+    System.err.printf("failure\n");
+    image.setData();
+    image.write(image.data,baseFile + "00");
+    closeFiles();
+    return;
+   }
+   closeFiles();
+  }
  }
 
  /**
@@ -88,7 +234,7 @@ public class GDraw
   * 
   * @param fileName name of board outline file
   */
- private void boardSize(String fileName)
+ public void boardSize(String fileName)
  {
   Pattern p = Pattern.compile("[Xx]?([0-9]*)[Yy]?([0-9]*)");
 
@@ -137,73 +283,11 @@ public class GDraw
  }
 
  /**
-  * Process a gerber file
-  */
- public void process()
- {
-  if (fIn.isFile())
-  {
-   readInput();
-   apertureList.addBitRadius(BIT_RADIUS);
-
-   apertureList.print();
-   padList.print();
-   trackList.print();
-
-   xMax = (int) (xMax / scale);
-   yMax = (int) (yMax / scale);
-//   xMax += 2;
-//   yMax += 1;
-//   System.out.printf("x max %4d y max %4d\n",xMax,yMax);
-   image = new Image(this,xMax,yMax,scale);
-
-   image.getData();
-   try
-   {
-    padList.draw(image);
-   }
-   catch (Exception e)
-   {
-    image.setData();
-    image.write(image.data,baseFile + "00");
-    closeFiles();
-    return;
-   }
-   image.setData();
-
-//   trackList.draw(image);
-//   image.testDraw();
-
-   image.drawTracks();
-
-   image.adjacentPads();
-   image.padTrack();
-
-//   image.getData();
-//   padList.check(image);
-
-   try
-   {
-    image.process();
-   }
-   catch (Exception e)
-   {
-    image.setData();
-    image.write(image.data,baseFile + "00");
-    closeFiles();
-    return;
-   }
-
-   closeFiles();
-  }
- }
-
- /**
   * Opens input an output files
   * 
   * @param inputFile the input file name
   */
- private void openFiles(String inputFile)
+ public void openFiles(String inputFile, boolean debug)
  {
   if (!inputFile.contains("."))
   {
@@ -215,6 +299,22 @@ public class GDraw
 
   baseFile = inputFile.split("\\.")[0];
 
+  if (dxf)
+  {
+   d = new Dxf();
+   if (d.init(baseFile + ".dxf"))
+   {
+    d.layer(tracks,Dxf.RED);
+    d.layer(trackNum,Dxf.RED);
+    d.layer(pads,Dxf.BLUE);
+    d.layer(padNum,Dxf.BLUE);
+   }
+   else
+   {
+    dxf = false;
+   }
+  }
+
   fIn = new File(inputFile);
   if (fIn.isFile())
   {
@@ -224,13 +324,14 @@ public class GDraw
    try
    {
     out = new PrintWriter(new BufferedWriter(new FileWriter(fOut)));
-    ncHeader(mirror, ((double) ySize) / SCALE);
+    ncHeader(mirror, ((double) xSize) / SCALE, ((double) ySize) / SCALE);
 
     String dbgFile = baseFile + ".dbg";
     File fDbg = new File(dbgFile);
-    if (DBG)
+    if (debug)
     {
      dbg = new PrintWriter(new BufferedWriter(new FileWriter(fDbg)));
+     dbgFlag = true;
     }
     else
     {
@@ -266,7 +367,7 @@ public class GDraw
   out.printf("m2\n");
   out.close();
 
-  if (DBG)
+  if (dbgFlag)
   {
    dbg.close();
   }
@@ -274,22 +375,28 @@ public class GDraw
   {
    csv.close();
   }
+  if (dxf)
+  {
+   d.end();
+  }
  }
 
  /**
   * Creates header information for nc output file
   * 
-  * @param mirror flag to indicate if y axis shold be mirrored
-  * @param offset offset to use to mirror y axis if mirror flag is true
+  * @param mirror flag to indicate if y axis should be mirrored
+  * @param xOffset offset to use to mirror y axis if mirror flag is true
+  * @param yOffset offset to use to mirror x axis if mirror flag is true
   */
- public void ncHeader(boolean mirror, double offset)
+ public void ncHeader(boolean mirror, double xOffset, double yOffset)
  {
   out.printf("(%s %s)\n",fIn.getAbsolutePath(),(new Date()).toString());
   out.printf("#1 = -0.009 (depth)\n");
   out.printf("#2 = 0.020  (retract)\n");
   if (mirror)
   {
-   out.printf("#3 = %5.3f  (offset)\n",offset);
+   out.printf("#30 = %5.3f  (offset)\n",xOffset);
+   out.printf("#31 = %5.3f  (offset)\n",yOffset);
    out.printf("#4 = -1     (mirror)\n");
   }
   else
@@ -327,7 +434,7 @@ public class GDraw
   InputBuf in = new InputBuf(fIn);
   while (in.read())
   {
-   if (DBG)
+   if (dbgFlag)
    {
     dbg.printf("%s\n", in.line);
     dbg.flush();
@@ -377,29 +484,32 @@ public class GDraw
      {
       yVal = in.getVal();
       yVal = ((yVal + 5) / 10) * 10;
-      if (mirror)
-      {
-       yVal = ySize - yVal;
-      }
+//      if (mirror)
+//      {
+//       yVal = ySize - yVal;
+//      }
      }
      else if (in.check('D'))
      {
       dCode = in.getVal();
       if (dCode == 1)
       {
-       trackList.add(new Pt(lastX, lastY),
-		     new Pt(xVal, yVal), currentAperture);
-       lastX = xVal;
-       lastY = yVal;
-       int x = xVal + apW;
-       if (x > xMax)
+       if (currentAperture != null)
        {
-        xMax = x;
-       }
-       int y = yVal + apH;
-       if (y > yMax)
-       {
-        yMax = y;
+	TrackList.Track trk = trackList.add(new Pt(lastX, lastY),
+					    new Pt(xVal, yVal), currentAperture);
+	lastX = xVal;
+	lastY = yVal;
+	int x = xVal + apW;
+	if (x > xMax)
+	{
+	 xMax = x;
+	}
+	int y = yVal + apH;
+	if (y > yMax)
+	{
+	 yMax = y;
+	}
        }
       }
       else if (dCode == 2)
@@ -414,16 +524,19 @@ public class GDraw
        {
 	System.out.printf("negative\n");
        }
-       padList.add(new Pt(xVal, yVal), currentAperture);
-       int x = xVal + apW;
-       if (x > xMax)
+       if (currentAperture != null)
        {
-        xMax = x;
-       }
-       int y = yVal + apH;
-       if (y > yMax)
-       {
-        yMax = y;
+	PadList.Pad pad = padList.add(new Pt(xVal, yVal), currentAperture);
+	int x = xVal + apW;
+	if (x > xMax)
+	{
+	 xMax = x;
+	}
+	int y = yVal + apH;
+	if (y > yMax)
+	{
+	 yMax = y;
+	}
        }
       }
       else if (dCode >= 10)

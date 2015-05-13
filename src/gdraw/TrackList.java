@@ -5,9 +5,11 @@
 
 package gdraw;
 
-import java.util.ArrayList;
 import java.io.PrintWriter;
-import gdraw.Util.*;
+
+import java.util.ArrayList;
+
+import gdraw.Util.Pt;
 
 /*
  * TrackList.java
@@ -47,13 +49,34 @@ public class TrackList extends ArrayList<TrackList.Track>
   * @param p1 ending point of track
   * @param a aperture used to create track
   */
- public void add(Pt p0, Pt p1, ApertureList.Aperture a)
+ public Track add(Pt p0, Pt p1, ApertureList.Aperture a)
  {
-  Track t;
+  Track t = null;
   if (!p0.equals(p1))
   {
    add(t = new Track(max++,p0,p1,a));
    t.print();
+  }
+  return(t);
+ }
+
+ public void rotate(int xMax)
+ {
+  for (int i = 0; i < size(); i++)
+  {
+   TrackList.Track t = get(i);
+   t.pt[0].rotate(xMax);
+   t.pt[1].rotate(xMax);
+  }
+ }
+
+ public void mirror(int xSize, int ySize)
+ {
+  for (int i = 0; i < size(); i++)
+  {
+   TrackList.Track t = get(i);
+   t.pt[0].mirror(xSize,ySize);
+   t.pt[1].mirror(xSize,ySize);
   }
  }
 
@@ -87,10 +110,11 @@ public class TrackList extends ArrayList<TrackList.Track>
  }
  */
 
- public class Track
+ public class Track implements Comparable<TrackList.Track>
  {
   Pt[] pt;			/* track end points */
   int index;			/* track number */
+  int gIndex;			/* track number in gerber file */
   ApertureList.Aperture ap;	/* aperture for track */
 
   public Track(int i, Pt p0, Pt p1, ApertureList.Aperture a)
@@ -102,14 +126,26 @@ public class TrackList extends ArrayList<TrackList.Track>
    ap = a;
   }
 
+  @Override public int compareTo(Track track)
+  {
+   int compare;
+
+   compare = pt[0].x - track.pt[0].x;
+   if (compare == 0)
+   {
+    compare = pt[0].y - track.pt[0].y;
+   }
+   return(compare);
+  }
+
   public void print()
   {
    if (dbgFlag)
    {
     int len = (int) pt[0].dist(pt[1]);
-    dbg.printf("trk %3d x %6d y %6d " +
+    dbg.printf("trk %3d %3d x %6d y %6d " +
 	       "x %6d  y %6d ap %2d %4.3f l %6d\n",
-	       index,
+	       index,gIndex,
 	       pt[0].x,pt[0].y,
 	       pt[1].x,pt[1].y,
 	       ap.index,ap.val1,len);

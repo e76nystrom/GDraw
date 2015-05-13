@@ -104,14 +104,56 @@ public class Util
   }
 
   /**
+   * Offset a point relative to another point
+   * 
+   * @param p point to offset from
+   */
+  public void offset(Pt p)
+  {
+   x -= p.x;
+   y -= p.y;
+  }
+
+  /**
+   * rotate swap x and y
+   * 
+   * @param xMax value to subtract x from
+   */
+  public void rotate(int xMax)
+  {
+   int tmp = x;
+   x = xMax - y;
+   y = tmp;
+  }
+
+  /**
+   * mirror x and y
+   * 
+   * @param xSize x value for mirror
+   * @param ySize y value for mirror
+   */
+  public void mirror(int xSize, int ySize)
+  {
+   if (xSize != 0)
+   {
+    x = xSize - x;
+   }
+   if (ySize != 0)
+   {
+    y = ySize - y;
+   }
+  }
+
+  /**
    * Determine if two points are close to each other.
    * 
    * @param p point to compare to
+   * @param dist minimum distance for compare
    * @return true if two points are close
    */
-  public boolean near(Pt p)
+  public boolean near(Pt p, int dist)
   {
-   return((Math.abs(x - p.x) < 20) && (Math.abs(y - p.y) < 20));
+   return((Math.abs(x - p.x) < dist) && (Math.abs(y - p.y) < dist));
   }
 
   /**
@@ -125,22 +167,19 @@ public class Util
   {
    double xdel = pt1.x - pt0.x;
    double ydel = pt1.y - pt0.y;
-   double mag = Math.sqrt(xdel * xdel + ydel * ydel);
+   double magSqr = xdel * xdel + ydel * ydel;
 
-   double u = ((x - pt0.x) * (pt1.x - pt0.x) +
-	       (y - pt0.y) * (pt1.y - pt0.y)) / (mag * mag);
+   double u = ((x - pt0.x) * xdel + (y - pt0.y) * ydel) / magSqr;
 
    if ((u < 0.0) || u > 1.0)
    {
-    return(9999);
+    return(-1);
    }
 
-   int xt = (int) (pt1.x + u * (pt1.x - pt0.x));
-   int yt = (int) (pt1.y + u * (pt1.y - pt0.y));
+   int xt = (int) (pt1.x + u * xdel);
+   int yt = (int) (pt1.y + u * ydel);
 
-   xdel = xt - x;
-   ydel = yt - y;
-   double d = Math.sqrt(xdel * xdel + ydel * ydel);
+   double d = Math.hypot(xt - x,yt- y);
    return((int) Math.floor(d));
   }
 

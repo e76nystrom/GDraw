@@ -154,7 +154,7 @@ public class Circle
   {
    if (j0 != pt0.length)
    {
-    dbg.printf("str %3d x %3d y %3d\n",j0,p.x,p.y);
+    dbg.printf("str %3d x %3d y %3d theta %3.0f\n",j0,p.x,p.y,Math.toDegrees(angle(p)));
    }
    else
    {
@@ -173,7 +173,7 @@ public class Circle
    {
     if (dbgFlag)
     {
-     dbg.printf("end %3d x %3d y %3d\n",j0,p.x,p.y);
+     dbg.printf("end %3d x %3d y %3d theta %3.0f\n",j0,p.x,p.y,Math.toDegrees(angle(p)));
     }
     return(i0Prev);
    }
@@ -189,6 +189,16 @@ public class Circle
    dbg.printf("no intersection\n");
   }
   return(0);
+ }
+
+ public double angle(Pt pt)
+ {
+  double theta = Math.atan2((double) pt.y,(double) pt.x);
+  if (theta < 0)
+  {
+   theta += 2 * Math.PI;
+  }
+  return(theta);
  }
 
  public void mark(Image image, Pt pt)
@@ -204,8 +214,10 @@ public class Circle
   }
  }
 
- public int markArc(Image image, Pt pt, int x, int y) throws Exception
+ public Circle.ArcEnd markArc(Image image, Pt pt, int x, int y) throws Exception
  {
+  ArcEnd arcEnd = new ArcEnd();
+
   int xCen = (int) (pt.x / image.scale);
   int yCen = (int) (pt.y / image.scale);
 
@@ -217,7 +229,9 @@ public class Circle
    dbg.printf("xc %4d yc %4d x0 %3d y0 %3d\n",xCen,yCen,x0,y0);
   }
 
-  int j0;
+  /* follow point list to find start */
+
+  int j0;			/* index of start */
   for (j0 = 0; j0 < pt0.length; j0++)
   {
    p = pt0[j0];
@@ -228,11 +242,14 @@ public class Circle
    }
   }
 
+  arcEnd.start = angle(p);
+
   if (dbgFlag)
   {
    if (j0 != pt0.length)
    {
-    dbg.printf("str %3d x %3d y %3d\n",j0,p.x,p.y);
+    dbg.printf("str %3d x %3d y %3d angle %3.0f\n",j0,p.x,p.y,
+	       Math.toDegrees(arcEnd.start));
    }
    else
    {
@@ -243,18 +260,22 @@ public class Circle
   int i0;
   int i0Prev = (yCen + p.y) * image.w0 + xCen + p.x;
 
-  for (Pt pt01 : pt0)
+  while (j0 < pt0.length)
   {
    p = pt0[j0];
    i0 = (yCen + p.y) * image.w0 + xCen + p.x;
    if (image.data[i0] != EDGE)
    {
+    arcEnd.end = angle(p);
+    arcEnd.i0 = i0Prev;
     if (dbgFlag)
     {
-     dbg.printf("end %3d x %3d y %3d\n",j0,p.x,p.y);
+     dbg.printf("end %3d x %3d y %3d angle %3.0f\n",j0,p.x,p.y,
+		Math.toDegrees(arcEnd.end));
     }
-    return(i0Prev);
+    return(arcEnd);
    }
+
    image.data[i0] = Image.PATH;
    j0++;
    if (j0 >= pt0.length)
@@ -263,10 +284,23 @@ public class Circle
    }
    i0Prev = i0;
   }
+
   if (dbgFlag)
   {
    dbg.printf("no intersection\n");
   }
-  return(0);
+  return(arcEnd);
+ }
+
+ public class ArcEnd
+ {
+  int i0;
+  double start;
+  double end;
+
+  public ArcEnd()
+  {
+   i0 = 0;
+  }
  }
 }

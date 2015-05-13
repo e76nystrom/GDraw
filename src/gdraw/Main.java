@@ -4,6 +4,14 @@
  */
 package gdraw;
 
+import java.io.File;
+import java.io.FileReader;
+import java.io.BufferedReader;
+import java.io.IOException;
+
+import java.util.regex.Pattern;
+import java.util.Scanner;
+
 /**
  *
  * @author Eric Nystrom
@@ -17,61 +25,121 @@ public class Main
  @SuppressWarnings({"DeadBranch", "UnusedAssignment"})
  public static void main(String[] args)
  {
-  String inputFile = "";
-  if (args.length >= 1)
-  {
-   inputFile = args[0];
-  }
-
+  double xSize = 0.0;
   double ySize = 0.0;
   boolean mirror = false;
-  if (args.length >= 2)
+  boolean rotate = false;
+  boolean debug = false;
+  boolean dxf = false;
+  boolean bmp = false;
+  String inputFile = "";
+  Pattern pOption = Pattern.compile("-[a-zD]");
+  String line = "";
+
+  if (args.length == 0)
   {
-   mirror = true;
-   ySize = Double.valueOf(args[1]);
+   File f = new File("gdraw.txt");
+   if (f.isFile())
+   {
+    try (BufferedReader in = new BufferedReader(new FileReader(f)))
+    {
+     while ((line = in.readLine()) != null)
+     {
+      if (line.length() != 0)
+      {
+       line = line.replaceAll(" +"," ");
+       if (!line.startsWith("/"))
+       {
+	break;
+       }
+      }
+     }
+     in.close();
+    }
+    catch (IOException e)
+    {
+     System.out.printf("command read error\n");
+    }
+   }
+  }
+  else
+  {
+   for (String arg : args)
+   {
+    line += arg + " ";
+   }
   }
 
-  if (inputFile.length() == 0)
+  Scanner sc = new Scanner(line);
+  while (sc.hasNext())
   {
-//   inputFile = "c:\\Development\\Circuits\\Strain Gage\\Strain_t.gbr";
-//   inputFile = "c:\\Development\\Circuits\\Step Driver\\Step_b.gbr";
-//   inputFile = "c:\\Development\\Circuits\\AD Converter\\Controller_b.gbr";
-//   inputFile = "c:\\Development\\Circuits\\Test\\Test_t.gbr";
-//   inputFile = "c:\\Development\\Circuits\\Accelerometer\\Accel_t.gbr";
-//   inputFile = "c:\\Development\\Circuits\\Hall Effect\\Hall_t.gbr";
-//   inputFile = "c:\\Development\\Circuits\\Amplifier\\Amp_b.gbr";
-//   inputFile = "c:\\Development\\Circuits\\Motor Control\\Motor_b.gbr";
-//   inputFile = "c:\\Development\\Circuits\\Power Connector\\Relay_b.gbr";
-//   inputFile = "c:\\Development\\Circuits\\RLB\\RLB_t.gbr";
-//   inputFile = "c:\\Development\\Circuits\\Gear Control 1\\BreakOut_b.gbr";
-//   inputFile = "c:\\Development\\Circuits\\Battery\\Reset\\Reset_b.gbr";
-//   inputFile = "c:\\Development\\Circuits\\CNC\\Relay\\RelayH1_b.gbr";
-//   inputFile = "c:\\Development\\Circuits\\cnc\\Mega32\\Mega32_t.gbr";
-//   inputFile = "c:\\Development\\Circuits\\Gear Control 1\\Gear_t.gbr";
-   inputFile = "c:\\Development\\Circuits\\CNC\\Vfd_Ctl\\VFDControl3_t.gbr";
-   if (false)
+   if (sc.hasNext(pOption))
    {
-    mirror = true;
-    ySize = 2.213;
+    String option = sc.next(pOption);
+    char c = option.charAt(1);
+    if (c == 'r')
+    {
+     rotate = true;
+    }
+    else if (c == 'x')
+    {
+     mirror = true;
+     if (sc.hasNextDouble())
+     {
+      xSize = sc.nextDouble();
+     }
+    }
+    else if (c == 'y')
+    {
+     mirror = true;
+     if (sc.hasNextDouble())
+     {
+      ySize = sc.nextDouble();
+     }
+    }
+    else if (c == 'd')
+    {
+     debug = true;
+    }
+    else if (c == 'c')
+    {
+     dxf = true;
+    }
+    else if (c == 'b')
+    {
+     bmp = true;
+    }
+    else if (c == 'D')
+    {
+     debug = true;
+     dxf = true;
+     bmp = true;
+    }
    }
-/*
-*/
+   else if (sc.hasNext())
+   {
+    if (inputFile.length() != 0)
+    {
+     inputFile += " ";
+    }
+    inputFile += sc.next();
+   }
   }
 
   if (inputFile.length() != 0)
   {
-   System.out.printf("gdraw 03/30/2015\n");
+   System.out.printf("gdraw 05/12/2015\n");
    System.out.printf("Processing %s", inputFile);
    if (mirror)
    {
-    System.out.printf(" Mirror %5.3f\n", ySize);
+    System.out.printf(" Mirror x %5.3f y %5.3f\n",xSize,ySize);
    }
    else
    {
     System.out.println();
    }
-   GDraw gdraw = new GDraw(inputFile, mirror, ySize);
-   gdraw.process();
+   GDraw gdraw = new GDraw();
+   gdraw.process(inputFile, rotate, mirror, xSize, ySize, debug, dxf, bmp);
   }
  }
 }

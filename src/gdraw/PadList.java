@@ -5,9 +5,11 @@
 
 package gdraw;
 
-import java.util.ArrayList;
 import java.io.PrintWriter;
-import gdraw.Util.*;
+
+import java.util.ArrayList;
+
+import gdraw.Util.Pt;
 
 /*
  * PadList.java
@@ -33,16 +35,17 @@ public class PadList extends ArrayList<PadList.Pad>
   max = 0;
  }
 
- public void add(Pt p, ApertureList.Aperture a)
+ public Pad add(Pt p, ApertureList.Aperture a)
  {
   Pad pad;
   add(pad = new Pad(max++,p,a));
   pad.print(dbg);
+  return(pad);
  }
 
  public Pad findPad(Pt pt)
  {
-  for (int i = 0; i < max; i++)
+  for (int i = 0; i < size(); i++)
   {
    Pad p = get(i);
    if (p.ap.connected(p.pt,pt))
@@ -51,6 +54,24 @@ public class PadList extends ArrayList<PadList.Pad>
    }
   }
   return(null);
+ }
+
+ public void rotate(int xMax)
+ {
+  for (int i = 0; i < size(); i++)
+  {
+   PadList.Pad p = get(i);
+   p.pt.rotate(xMax);
+  }
+ }
+
+ public void mirror(int xSize, int ySize)
+ {
+  for (int i = 0; i < size(); i++)
+  {
+   PadList.Pad p = get(i);
+   p.pt.mirror(xSize,ySize);
+  }
  }
 
  public void draw(Image image) throws Exception
@@ -78,7 +99,7 @@ public class PadList extends ArrayList<PadList.Pad>
    for (int i = 0; i < max; i++)
    {
     Pad pad = (Pad) get(i);
-    dbg.printf("%3d %6d y %6d ",i,pad.pt.x,pad.pt.y);
+    dbg.printf("%3d %3d %6d y %6d ",pad.index,pad.gIndex,pad.pt.x,pad.pt.y);
 
     ApertureList.Aperture ap = pad.ap;
     if (ap != null)
@@ -102,11 +123,12 @@ public class PadList extends ArrayList<PadList.Pad>
   }
  }
 
- public class Pad
+ public class Pad implements Comparable<PadList.Pad>
  {
   Pt pt;			/* pad location */
   ApertureList.Aperture ap;	/* aperture */
   int index;			/* pad number */
+  int gIndex;			/* pad number in gerber file */
 
   public Pad(int i, Pt p, ApertureList.Aperture a)
   {
@@ -125,6 +147,18 @@ public class PadList extends ArrayList<PadList.Pad>
    return(ap.connected(pt,p0));
   }
 
+  @Override public int compareTo(Pad pad)
+  {
+   int compare;
+
+   compare = pt.x - pad.pt.x;
+   if (compare == 0)
+   {
+    compare = pt.y - pad.pt.y;
+   }
+   return(compare);
+  }
+
   /**
    * Determine distance between point and line.
    * 
@@ -132,34 +166,50 @@ public class PadList extends ArrayList<PadList.Pad>
    * @param pt1 second end point of line
    * @return distance between point and line
    */
-  public int lineDistance(Pt pt0, Pt pt1)
+  public PadList.PadDist lineDistance(Pt pt0, Pt pt1)
   {
+   PadList.PadDist padDist = new PadDist();
+
+   double r0 = ap.val1 * GDraw.SCALE;
+   if ((Math.hypot(pt.x - pt0.x,pt.y - pt0.y) <= r0)
+   ||  (Math.hypot(pt.x - pt1.x,pt.y - pt1.y) <= r0))
+   {
+    return(padDist);
+   }
+
    double xdel = pt1.x - pt0.x;
    double ydel = pt1.y - pt0.y;
-   double mag = Math.sqrt(xdel * xdel + ydel * ydel);
+   double mag = xdel * xdel + ydel * ydel;
 
-   double u = ((pt.x - pt0.x) * (pt1.x - pt0.x) +
-	       (pt.y - pt0.y) * (pt1.y - pt0.y)) / (mag * mag);
+   double u = ((pt.x - pt0.x) * xdel +
+	       (pt.y - pt0.y) * ydel) / mag;
+
+   if (dbgFlag)
+   {
+    dbg.printf("%3d x %6d y %6d " + 
+	       "pt0.x %6d pt0.y %6d " +
+	       "pt1.x %6d pt1.y %6d u %6.3f\n",
+	       index,pt.x,pt.y,pt0.x,pt0.y,pt1.x,pt1.y,u);
+   }
 
    if ((u < 0.0) || u > 1.0)
-    return(9999);
+   {
+    return(padDist);
+   }
 
-   int xt = (int) (pt1.x + u * (pt1.x - pt0.x));
-   int yt = (int) (pt1.y + u * (pt1.y - pt0.y));
+   int xt = (int) (pt0.x + u * xdel);
+   int yt = (int) (pt0.y + u * ydel);
 
-   xdel = xt - pt.x;
-   ydel = yt - pt.y;
-   double d = Math.sqrt(xdel * xdel + ydel * ydel);
+   padDist.dist = (int) Math.floor(Math.hypot(xt - pt.x,yt - pt.y));
 
-//   if (d < TrackList.MIN_DIST)
-//   {
-//    dbg.printf("%3d x %6d y %6d " + 
-//	       "pt0.x %6d pt0.y %6d " +
-//	       "pt1.x %6d pt1.y %6d " +
-//	       "xt %6d yt %6d d %f\n",
-//	       i1,x,y,pt0.x,pt0.y,pt1.x,pt1.y,xt,yt,d);
-//   }
-   return((int) Math.floor(d));
+   if (dbgFlag)
+   {
+    dbg.printf("xt %6d yt %6d dist %6d\n",xt,yt,padDist.dist);
+   }
+
+   padDist.x = xt;
+   padDist.y = yt;
+   return(padDist);
   }
 
   public void print(PrintWriter dbg)
@@ -168,6 +218,20 @@ public class PadList extends ArrayList<PadList.Pad>
    {
     dbg.printf("x %6d y %6d pad %3d\n",pt.x,pt.y,index);
    }
+  }
+ }
+
+ public class PadDist
+ {
+  int dist;
+  int x;
+  int y;
+
+  public PadDist()
+  {
+   dist = -1;
+   x = 0;
+   y = 0;
   }
  }
 }

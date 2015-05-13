@@ -77,12 +77,28 @@ public class ApertureList
     {
      ap.val1 += r;
      ap.val2 += r;
+     ap.iVal1 = (int) (ap.val1 * GDraw.SCALE);
+     ap.iVal2 = ap.iVal1;
     }
     else if (ap.type == Aperture.SQUARE)
     {
      ap.val1 += r;
      ap.val2 += r;
+     ap.iVal1 = (int) (ap.val1 * GDraw.SCALE);
+     ap.iVal2 = (int) (ap.val2 * GDraw.SCALE);
     }
+   }
+  }
+ }
+
+ public void rotate()
+ {
+  for (int i = 0; i < MAXAPERTURE; i++)
+  {
+   Aperture ap = aperture[i];
+   if (ap != null)
+   {
+    ap.rotate();
    }
   }
  }
@@ -117,6 +133,8 @@ public class ApertureList
   int index;			/* aperture number */
   double val1;			/* size for round or width for rectangular */
   double val2;			/* height for rectangular */
+  int iVal1;			/* integer version */
+  int iVal2;
   Circle c;
 
   public static final int ROUND = 1;
@@ -129,6 +147,8 @@ public class ApertureList
    index = i;
    val1 = v1;
    val2 = v1;
+   iVal1 = (int) (v1 * GDraw.SCALE);
+   iVal2 = iVal1;
   }
 
   public Aperture(int i, double v1, double v2)
@@ -136,16 +156,17 @@ public class ApertureList
    type = SQUARE;
    typeStr = "s";
    index = 1;
-
    val1 = v1;
    val2 = v2;
+   iVal1 = (int) (v1 * GDraw.SCALE);
+   iVal2 = (int) (v2 * GDraw.SCALE);
   }
 
   public void draw(Image image, Pt pt)
   {
    if (c == null)
    {
-    int r = (int) ((val1 / 2 * GDraw.SCALE) / image.scale);
+    int r = (int) (iVal1 / (2 * image.scale));
     c = new Circle(dbg,r);
    }
    int x = (int) (pt.x / image.scale);
@@ -153,11 +174,24 @@ public class ApertureList
    c.fill(image.data,image.w0,x,y);
   }
 
+  public void rotate()
+  {
+   double tmp;
+   tmp = val1;
+   val1 = val2;
+   val2 = tmp;
+
+   int iTmp;
+   iTmp = iVal1;
+   iVal1 = iVal2;
+   iVal2 = iTmp;
+  }
+
   public boolean connected(Pt p0, Pt pt)
   {
    if (type == Aperture.ROUND) /* if round pad */
    {
-    double size = (val1 / 2.0) * GDraw.SCALE;
+    double size = iVal1 / 2;
     double dist = p0.dist(pt);
 //    dbg.printf("%5d %5d %6.1f\n",p0.x,p0.y,Math.abs(dist - size));
     if (Math.abs(dist) < (size + 15))
@@ -165,8 +199,8 @@ public class ApertureList
    }
    else if (type == Aperture.SQUARE) /* if square pad */
    {
-    int xval = (int) (val1 / 2.0 * GDraw.SCALE);
-    int yval = (int) (val2 / 2.0 * GDraw.SCALE);
+    int xval = iVal1 / 2;
+    int yval = iVal2 / 2;
 
     int xr = p0.x + xval;	/* right side */
     int yt = p0.y + yval;	/* top side */
@@ -174,9 +208,9 @@ public class ApertureList
     int yb = p0.y - yval;	/* bottom side */
 
     if ((pt.x > xr)
-	||  (pt.x < xl)
-	||  (pt.y > yt)
-	||  (pt.y < yb))
+    ||  (pt.x < xl)
+    ||  (pt.y > yt)
+    ||  (pt.y < yb))
     {
     }
     else

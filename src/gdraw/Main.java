@@ -9,6 +9,7 @@ import java.io.FileReader;
 import java.io.BufferedReader;
 import java.io.IOException;
 
+import java.util.regex.MatchResult;
 import java.util.regex.Pattern;
 import java.util.Scanner;
 
@@ -25,6 +26,10 @@ public class Main
  @SuppressWarnings({"DeadBranch", "UnusedAssignment"})
  public static void main(String[] args)
  {
+  boolean variables = false;
+  boolean metric = false;
+  boolean probe = false;
+  String probeFile = "";
   double xSize = 0.0;
   double ySize = 0.0;
   boolean mirror = false;
@@ -33,8 +38,14 @@ public class Main
   boolean dxf = false;
   boolean bmp = false;
   String inputFile = "";
-  Pattern pOption = Pattern.compile("-[a-zD]");
+  Pattern pOption = Pattern.compile("-([a-zA-Z])");
+  Pattern p1Option = Pattern.compile("--([a-zA-Z]*)=?(\\S*)");
   String line = "";
+  
+  double depth = -0.009;
+  double retract = 0.020;
+  double linearFeed = 14.0;
+  double circularFeed = 14.0;
 
   if (args.length == 0)
   {
@@ -45,11 +56,13 @@ public class Main
     {
      while ((line = in.readLine()) != null)
      {
+      line = line.trim();
       if (line.length() != 0)
       {
        line = line.replaceAll(" +"," ");
        if (!line.startsWith("/"))
        {
+	System.out.println(line);
 	break;
        }
       }
@@ -76,44 +89,88 @@ public class Main
    if (sc.hasNext(pOption))
    {
     String option = sc.next(pOption);
-    char c = option.charAt(1);
-    if (c == 'r')
+    MatchResult m = sc.match();
+    int count = m.groupCount();
+    if (count == 1)
     {
-     rotate = true;
-    }
-    else if (c == 'x')
-    {
-     mirror = true;
-     if (sc.hasNextDouble())
+     char c = m.group(1).charAt(0);
+     // System.out.printf("%c\n", c);
+     switch (c)
      {
-      xSize = sc.nextDouble();
+     case 'r':
+      rotate = true;
+      break;
+     case 'x':
+      mirror = true;
+      if (sc.hasNextDouble())
+      {
+       xSize = sc.nextDouble();
+      }
+      break;
+     case 'y':
+      mirror = true;
+      if (sc.hasNextDouble())
+      {
+       ySize = sc.nextDouble();
+      }
+      break;
+     case 'd':
+      debug = true;
+      break;
+     case 'c':
+      dxf = true;
+      break;
+     case 'b':
+      bmp = true;
+      break;
+     case 'D':
+      debug = true;
+      dxf = true;
+      bmp = true;
+      break;
+     case 'v':
+      variables = true;
+      break;
+     case 'm':
+      metric = true;
+      break;
+     case 'p':
+      probe = true;
+      if (count >= 2)
+      {
+       probeFile = m.group(2);
+      }
+     default:
+      break;
      }
     }
-    else if (c == 'y')
+    else if (count == 2)
     {
-     mirror = true;
-     if (sc.hasNextDouble())
+     option = m.group(1);
+     try
      {
-      ySize = sc.nextDouble();
+      double val = Double.valueOf(m.group(2));
+      switch (option)
+      {
+      case "depth":
+       depth = val;
+       break;
+      case "retract":
+       retract = val;
+       break;
+      case "linear":
+       linearFeed = val;
+       break;
+      case "circular":
+       circularFeed = val;
+       break;
+      default:
+       break;
+      }
      }
-    }
-    else if (c == 'd')
-    {
-     debug = true;
-    }
-    else if (c == 'c')
-    {
-     dxf = true;
-    }
-    else if (c == 'b')
-    {
-     bmp = true;
-    }
-    else if (c == 'D')
-    {
-     debug = true;
-     dxf = true;
-     bmp = true;
+     catch (NumberFormatException e)
+     {
+     }
     }
    }
    else if (sc.hasNext())
@@ -126,9 +183,17 @@ public class Main
    }
   }
 
+  if (metric)
+  {
+   depth *= 25.4;
+   retract *= 25.4;
+   linearFeed *= 25.4;
+   circularFeed *= 25.4;
+  }
+
   if (inputFile.length() != 0)
   {
-   System.out.printf("gdraw 05/12/2015\n");
+   System.out.printf("gdraw 03/11/2017\n");
    System.out.printf("Processing %s", inputFile);
    if (mirror)
    {
@@ -139,6 +204,13 @@ public class Main
     System.out.println();
    }
    GDraw gdraw = new GDraw();
+   gdraw.setVariables(variables);
+   gdraw.setMetric(metric);
+   gdraw.setProbe(probe, probeFile);
+   gdraw.setDepth(depth);
+   gdraw.setRetract(retract);
+   gdraw.setLinear(linearFeed);
+   gdraw.setCircular(circularFeed);
    gdraw.process(inputFile, rotate, mirror, xSize, ySize, debug, dxf, bmp);
   }
  }

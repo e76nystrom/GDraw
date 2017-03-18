@@ -15,6 +15,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 
+import java.text.SimpleDateFormat;
+
 import java.util.Collections;
 import java.util.Date;
 
@@ -55,11 +57,24 @@ public class GDraw
  String trackNum = "trackNum";
  String pads = "pads";
  String padNum = "padNum";
+ String outline = "outline";
  boolean dxf = false;
 
  public static final boolean CSV = false;
  public static final double BIT_RADIUS = .010;
 
+ double depth;
+ double retract;
+ double linearFeed;
+ double circularFeed;
+
+ boolean variables;
+ boolean metric;
+ 
+ boolean probeFlag;
+ String probeFile;
+ Probe probe = new Probe();
+ 
  /**
   * Scale factor for converting interger input to correct position
   */
@@ -71,6 +86,42 @@ public class GDraw
   */
  public GDraw()
  {
+ }
+
+ public void setVariables(boolean val)
+ {
+  this.variables = val;
+ }
+
+ public void setMetric(boolean val)
+ {
+  this.metric = val;
+ }
+
+ public void setProbe(boolean val, String probeFile)
+ {
+  this.probeFlag = val;
+  this.probeFile = probeFile;
+ }
+
+ public void setDepth(double val)
+ {
+  this.depth = val;
+ }
+
+ public void setRetract(double val)
+ {
+  this.retract = val;
+ }
+
+ public void setLinear(double val)
+ {
+  this.linearFeed = val;
+ }
+
+ public void setCircular(double val)
+ {
+  this.circularFeed = val;
  }
 
  /**
@@ -85,6 +136,7 @@ public class GDraw
   * @param dxfFlag
   * @param bmp
   */
+ @SuppressWarnings("CallToPrintStackTrace")
  public void process(String inputFile, boolean r, boolean m, double x, double y,
 		     boolean debug, boolean dxfFlag, boolean bmp)
  {
@@ -93,10 +145,11 @@ public class GDraw
   xSize = (int) (x * SCALE);
   ySize = (int) (y * SCALE);
   dxf = dxfFlag;
-  openFiles(inputFile,debug);
   apertureList = new ApertureList(this);
-  trackList = new TrackList(this);
   padList = new PadList(this);
+  trackList = new TrackList(this);
+
+  openFiles(inputFile, debug);
 
   if (fIn.isFile())
   {
@@ -123,8 +176,8 @@ public class GDraw
     {
      dbg.printf("\nmirror\n\n");
     }
-    padList.mirror(xSize,ySize);
-    trackList.mirror(xSize,ySize);
+    padList.mirror(xSize, ySize);
+    trackList.mirror(xSize, ySize);
    }
 
    apertureList.addBitRadius(BIT_RADIUS);
@@ -145,15 +198,15 @@ public class GDraw
      d.setLayer(pads);
      if (pad.ap.type == ApertureList.Aperture.ROUND)
      {
-      d.circle(tx,ty,w);
+      d.circle(tx, ty, w);
      }
      else if (pad.ap.type == ApertureList.Aperture.SQUARE)
      {
       double h = pad.ap.val2 / 2.0;
-      d.rectangle(tx - w,ty - h,tx + w,ty + h);
+      d.rectangle(tx - w, ty - h, tx + w, ty + h);
      }
      d.setLayer(padNum);
-     d.text(tx + w + .003,ty + .005,.010,String.format("%d",pad.index));
+     d.text(tx + w + .003, ty + .005, 0.010, String.format("%d", pad.index));
     }
    }
    padList.print();
@@ -171,10 +224,10 @@ public class GDraw
      double tx1 = track.pt[1].x / SCALE;
      double ty1 = track.pt[1].y / SCALE;
      d.setLayer(tracks);
-     d.line(tx0,ty0,tx1,ty1);
+     d.line(tx0, ty0, tx1, ty1);
      d.setLayer(trackNum);
-     d.text(tx0 + (tx1 - tx0) / 2 + .005,ty0 + (ty1 - ty0) / 2 + .005,.010,
-	    String.format("%d",track.index));
+     d.text(tx0 + (tx1 - tx0) / 2 + .005, ty0 + (ty1 - ty0) / 2 + .005, 0.010,
+	    String.format("%d", track.index));
     }
    }
    trackList.print();
@@ -183,8 +236,16 @@ public class GDraw
    yMax = (int) (yMax / scale);
 //   xMax += 2;
 //   yMax += 1;
-   System.out.printf("x max %4d y max %4d\n",xMax,yMax);
-   image = new Image(this,xMax,yMax,scale);
+   System.out.printf("x max %4d y max %4d\n", xMax, yMax);
+   image = new Image(this, xMax, yMax, scale);
+   image.setVariables(variables);
+   image.setMetric(metric);
+   image.setDepth(depth);
+   image.setRetract(retract);
+   image.setLinear(linearFeed);
+   image.setCircular(circularFeed);
+   image.setProbe(probeFlag, probe);
+   probe.setDebug(dbgFlag, dbg);
 
    image.getData();
    try
@@ -193,9 +254,9 @@ public class GDraw
    }
    catch (Exception e)
    {
-    System.err.printf("failure\n");
+    System.err.printf("failure %s\n", e.toString());
     image.setData();
-    image.write(image.data,baseFile + "00");
+    image.write(image.data, baseFile + "00");
     closeFiles();
     return;
    }
@@ -207,8 +268,9 @@ public class GDraw
    image.adjacentPads(false);
    image.getData();
    image.adjacentPads(true);
-   image.adjacentFix();
+   image.getData();
    image.padTrack();
+   image.adjacentFix();
 
 //   image.getData();
 //   padList.check(image);
@@ -219,9 +281,10 @@ public class GDraw
    }
    catch (Exception e)
    {
-    System.err.printf("failure\n");
+    System.err.printf("failure %s\n", e.toString());
+    e.printStackTrace();
     image.setData();
-    image.write(image.data,baseFile + "00");
+    image.write(image.data, baseFile + "00");
     closeFiles();
     return;
    }
@@ -258,6 +321,10 @@ public class GDraw
       if (xStr.length() != 0)
       {
        int x = Integer.parseInt(xStr);
+       if (x > 100000)
+       {
+	x /= 100;
+       }
        if (x > xMax)
        {
 	xMax = x;
@@ -266,6 +333,10 @@ public class GDraw
       if (yStr.length() != 0)
       {
        int y = Integer.parseInt(yStr);
+       if (y > 100000)
+       {
+	y /= 100;
+       }
        if (y > yMax)
        {
 	yMax = y;
@@ -278,7 +349,7 @@ public class GDraw
    {
     System.out.println(e);
    }
-   System.out.printf("Size x %5.3f y %5.3f\n",xMax / SCALE,yMax / SCALE);
+   System.out.printf("Size x %5.3f y %5.3f\n", xMax / SCALE, yMax / SCALE);
   }
  }
 
@@ -286,6 +357,7 @@ public class GDraw
   * Opens input an output files
   * 
   * @param inputFile the input file name
+  * @param debug
   */
  public void openFiles(String inputFile, boolean debug)
  {
@@ -294,20 +366,37 @@ public class GDraw
    inputFile += ".gbr";
   }
 
-  String boardFile = inputFile.replaceAll("_[bt]","");
+  String boardFile = inputFile.replaceAll("_[bt]", "");
   boardSize(boardFile);
 
   baseFile = inputFile.split("\\.")[0];
+
+  if (probeFlag)
+  {
+   if (probeFile.length() == 0)
+   {
+    probeFile = inputFile.replaceFirst("\\.gbr$", ".prb");
+   }
+   boolean flag = probe.readFile(probeFile);
+   if (!flag)
+   {
+    System.err.printf("disabling probe file\n");
+    probeFlag = false;
+   }
+  }
 
   if (dxf)
   {
    d = new Dxf();
    if (d.init(baseFile + ".dxf"))
    {
-    d.layer(tracks,Dxf.RED);
-    d.layer(trackNum,Dxf.RED);
-    d.layer(pads,Dxf.BLUE);
-    d.layer(padNum,Dxf.BLUE);
+    d.layer(tracks, Dxf.RED);
+    d.layer(trackNum, Dxf.RED);
+    d.layer(pads, Dxf.BLUE);
+    d.layer(padNum, Dxf.BLUE);
+    d.layer(outline, Dxf.BLUE);
+    d.setLayer(outline);
+    d.rectangle(0.0, 0.0, xMax / SCALE, yMax / SCALE);
    }
    else
    {
@@ -336,6 +425,15 @@ public class GDraw
     else
     {
      fDbg.delete();
+     String[] ext = {"0", "1", "00"};
+     for (String e : ext)
+     {
+      File f = new File(baseFile + e + ".png");
+      if (f.exists())
+      {
+       f.delete();
+      }       
+     }
     }
 
     if (CSV)
@@ -390,29 +488,100 @@ public class GDraw
   */
  public void ncHeader(boolean mirror, double xOffset, double yOffset)
  {
-  out.printf("(%s %s)\n",fIn.getAbsolutePath(),(new Date()).toString());
-  out.printf("#1 = -0.009 (depth)\n");
-  out.printf("#2 = 0.020  (retract)\n");
-  if (mirror)
+  SimpleDateFormat sdf = new SimpleDateFormat("EEE LLL dd HH:mm:ss yyyy");
+  out.printf("(%s %s)\n", fIn.getAbsolutePath(), sdf.format(new Date()));
+  if (probeFlag)
   {
-   out.printf("#30 = %5.3f  (offset)\n",xOffset);
-   out.printf("#31 = %5.3f  (offset)\n",yOffset);
-   out.printf("#4 = -1     (mirror)\n");
+   File f = new File(probeFile);
+   out.printf("(probe file %s %s)\n", f.getAbsolutePath(),
+	      sdf.format(f.lastModified()));
+  }
+  double mScale = 1.0;
+  if (!metric)
+  {
+   out.printf("g20       (inch units)\n");
   }
   else
   {
-   out.printf("#4 = 1      (mirror)\n");
+   out.printf("g21       (metric units)\n");
+   mScale = 25.4;
   }
-  out.printf("#5 = 14.0     (linear feed rate)\n");
-  out.printf("#6 = 14.0     (circle feed rate)\n");
-
-  out.printf("g0 z0.500        (move tool above clamps)\n");
-  out.printf("g0 x0.250 y0.250 (move tool away from clamps)\n");
-  out.printf("f[#5]     (set feed rate)\n");
   out.printf("g61       (exact path mode)\n");
+  if (this.variables)
+  {
+   out.printf("#1 = %7.4f (depth)\n", this.depth);
+   out.printf("#2 = %7.4f (retract)\n", this.retract);
+   if (mirror)
+   {
+    out.printf("#30 = %5.3f  (offset)\n", xOffset * mScale);
+    out.printf("#31 = %5.3f  (offset)\n", yOffset * mScale);
+    out.printf("#4 = -1      (mirror)\n");
+   }
+   else
+   {
+    out.printf("#4 = 1       (mirror)\n");
+   }
+   out.printf("#5 = %4.1f    (linear feed rate)\n", this.linearFeed);
+   out.printf("#6 = %4.1f    (circle feed rate)\n", this.circularFeed);
+  }
+  else
+  {
+   out.printf("\n");
+   out.printf("(depth   = %7.4f)\n", this.depth);
+   out.printf("(retract = %7.4f)\n", this.retract);
+   if (mirror)
+   {
+    out.printf("(xOffset = %5.3f)\n",xOffset * mScale);
+    out.printf("(yOffset = %5.3f)\n",yOffset * mScale);
+    out.printf("(mirror = -1)\n");
+   }
+   else
+   {
+    out.printf("(mirror = 1)\n");
+   }
+   out.printf("(linearFeed   = %4.1f)\n", this.linearFeed);
+   out.printf("(circularFeed = %4.1f)\n", this.circularFeed);
+  }
+  out.printf("\n");
+
+  if (probeFlag)
+  {
+   double[][] zMatrix = probe.zMatrix;
+   int len = zMatrix[0].length;
+   out.printf("(  ");
+   for (int i = 0; i < zMatrix.length; i++)
+   {
+    out.printf("   %2d   ", i);
+   }
+   out.printf(")\n");
+   for (int j = len - 1; j >= 0; j--)
+   {
+    out.printf("(%2d", j);
+    for (int i = 0; i < zMatrix.length; i++)
+    {
+     out.printf(" %7.4f", zMatrix[i][j]);
+    }
+    out.printf(")\n");
+   }
+   out.println();
+  }
+  
+  out.printf("g0 z%5.3f        (move tool above clamps)\n", 0.500 * mScale);
+  out.printf("g0 x%5.3f y%5.3f (move tool away from clamps)\n", 
+	     0.250 * mScale,  0.250 * mScale);
+  out.printf("\n");
+  if (this.variables)
+  {
+   out.printf("f[#5]     (set feed rate)\n");
+  }
+  else
+  {
+   out.printf("f%4.1f    (set feed rate)\n", this.linearFeed);
+  }
   out.printf("s25000    (set spindle speed)\n");
   out.printf("m3        (start spindle)\n");
   out.printf("g4 p1.0   (wait for spindle to come to speed)\n");
+  out.printf("\n");
  }
 
  /**
@@ -446,24 +615,28 @@ public class GDraw
      int apertureNo = in.getVal();
      char c = in.get();
      in.skip();
-     if (c == 'C')
+     switch (c)
      {
-      double size = in.getFVal();
-      apertureList.add(apertureNo, size);
-     }
-     else if (c == 'R')
-     {
-      double size0 = in.getFVal();
-      double size1 = in.getFVal();
-      apertureList.add(apertureNo, size0, size1);
-     }
-     else
-     {
-      System.out.printf("aperture %d not rectangular or curcular\n",
-			apertureNo);
-      double size0 = in.getFVal();
-      double size1 = in.getFVal();
-      apertureList.add(apertureNo, size0, size1);
+      case 'C':
+       double size = in.getFVal();
+       apertureList.add(apertureNo, size);
+       break;
+      case 'R':
+       {
+        double size0 = in.getFVal();
+        double size1 = in.getFVal();
+        apertureList.add(apertureNo, size0, size1);
+        break;
+       }
+      default:
+       {
+        System.out.printf("aperture %d not rectangular or curcular\n",
+                apertureNo);
+        double size0 = in.getFVal();
+        double size1 = in.getFVal();
+        apertureList.add(apertureNo, size0, size1);
+        break;
+       }
      }
     }
    }
@@ -478,11 +651,19 @@ public class GDraw
      else if (in.check('X'))
      {
       xVal = in.getVal();
+//      if (xVal > 100000)
+      {
+       xVal /= 100;
+      }
       xVal = ((xVal + 5) / 10) * 10;
      }
      else if (in.check('Y'))
      {
       yVal = in.getVal();
+//      if (yVal > 100000)
+      {
+       yVal /= 100;
+      }
       yVal = ((yVal + 5) / 10) * 10;
 //      if (mirror)
 //      {
@@ -544,7 +725,7 @@ public class GDraw
        currentAperture = apertureList.get(dCode);
        if (currentAperture == null)
        {
-        System.out.printf("null aperture %d\n",dCode);
+        System.out.printf("null aperture %d\n", dCode);
        }
        else if (currentAperture.type == ApertureList.Aperture.ROUND)
        {
@@ -767,7 +948,7 @@ public class GDraw
      double tmp = Double.valueOf(s);
      if (tmp < 0.0)
      {
-      System.out.printf("negatve value %f\n",tmp);
+      System.out.printf("negatve value %f\n", tmp);
      }
      return (tmp);
     }

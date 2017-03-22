@@ -29,6 +29,8 @@ import gdraw.Util.Pt;
 //import org.jgap.impl.*;
 //import org.jgap.impl.salesman.*;
 
+import Dxf.Dxf;
+
 /**
  *
  * @author Eric
@@ -66,8 +68,17 @@ public class Image
  String g3FmtIJ;
  String depthFmt;
 
+ boolean dxf;
+ Dxf d1;
+
  boolean probeFlag = false;
  Probe probe;
+
+ int minGap = 29;
+
+ boolean mirror;
+ int xSize;
+ int ySize;
 
  public static final int BACKGROUND = new Color(0xe0, 0xff, 0xff).getRGB();
  public static final int GRID       = new Color(0xe0, 0x00, 0xff).getRGB();
@@ -120,6 +131,13 @@ public class Image
   }
  }
 
+ public void setMirror(boolean mirror, int xSize, int ySize)
+ {
+  this.mirror = mirror;
+  this.xSize = xSize;
+  this.ySize = ySize;
+ }
+
  public void setVariables(boolean val)
  {
   this.variables = val;
@@ -154,6 +172,12 @@ public class Image
  {
   this.probeFlag = probeFlag;
   probe = p;
+ }
+
+ public void setDxf(boolean dxf, Dxf d1)
+ {
+  this.dxf = dxf;
+  this.d1 = d1;
  }
 
  public void getData()
@@ -357,6 +381,8 @@ public class Image
    }
    BasicStroke stroke = new BasicStroke(wx0, BasicStroke.CAP_ROUND,
 					BasicStroke.JOIN_MITER);
+   /* BasicStroke stroke = new BasicStroke(wx0, BasicStroke.CAP_BUTT, */
+   /* 					BasicStroke.JOIN_BEVEL); */
    g.setStroke(stroke);
    Line2D s = new Line2D.Float((float) (t0.pt[0].x / scale),
 			       (float) (t0.pt[0].y / scale),
@@ -397,8 +423,10 @@ public class Image
   g.draw(p);
  }
 
- public void adjacentPads(boolean scanVertical)
+ public boolean adjacentPads(boolean scanVertical)
  {
+  boolean overlap = false;
+  
   if (dbgFlag)
   {
    dbg.printf("\nAdjacent Pads %s\n\n",
@@ -433,7 +461,7 @@ public class Image
     Pt ptj = pj.pt;
 
     int padSize;
-    if (pti.x == ptj.x)
+    if (pti.x == ptj.x)		/* if pads vertical */
     {
      if (!scanVertical)
      {
@@ -443,7 +471,7 @@ public class Image
      dist = ptj.y - pti.y;
      padSize = (int) ((pi.ap.iVal2 + pj.ap.iVal2) / 2);
     }
-    else if (pti.y == ptj.y)
+    else if (pti.y == ptj.y)	/* if pads horizontal */
     {
      if (scanVertical)
      {
@@ -452,7 +480,7 @@ public class Image
      dist = ptj.x - pti.x;
      padSize = (int) ((pi.ap.iVal1 + pj.ap.iVal1) / 2);
     }
-    else
+    else			/* if pads oblique */
     {
      oblique = true;
      dist = (int) Math.hypot(pti.x - ptj.x, pti.y - ptj.y);
@@ -474,13 +502,38 @@ public class Image
     }
 
     int gap = dist - padSize;
-    if (gap <= 0)
+    if (gap <= minGap)
     {
+     overlap = true;
+     Pt pt0;
+     Pt pt1;
+     if (mirror)
+     {
+      pt0 = p0.pt.copy();
+      pt0.mirror(xSize, ySize);
+      pt1 = p1.pt.copy();
+      pt1.mirror(xSize, ySize);
+     }
+     else
+     {
+      pt0 = p0.pt;
+      pt1 = p1.pt;
+     }
+      
+     String tmp = "";
      if (p0.ap.type == ApertureList.Aperture.ROUND)
      {
-      System.err.printf("overlapping pads %d %d\n", p0.index, p1.index);
-      System.exit(1);
+      tmp = "rnd";
      }
+     else if (p0.ap.type == ApertureList.Aperture.SQUARE)
+     {
+      tmp = "sqr";
+     }
+     System.err.printf("overlapping %s pads %3d (%5.3f, %5.3f) " +
+		       "%3d (%5.3f, %5.3f) d %7.4f\n", tmp,
+		       p0.index, pt0.x / GDraw.SCALE, pt0.y / GDraw.SCALE,
+		       p1.index, pt1.x / GDraw.SCALE, pt1.y / GDraw.SCALE,
+		       gap / GDraw.SCALE);
      continue;
     }
 
@@ -491,7 +544,16 @@ public class Image
 
     if (dbgFlag)
     {
-     dbg.printf("pad %3d %3d dist %6d\n", p0.index, p1.index, dist);
+     if (p0.ap.type == ApertureList.Aperture.ROUND)
+     {
+      dbg.printf("pad %3d %3d dist %6d gap %6d\n",
+		 p0.index, p1.index, dist, gap);
+     }
+     else if (p0.ap.type == ApertureList.Aperture.SQUARE)
+     {
+      dbg.printf("pad %3d %3d dist %6d gap %6d\n",
+		 p0.index, p1.index, dist, gap);
+     }
     }
 
     if ((dist >= minDist) &&
@@ -607,6 +669,7 @@ public class Image
     }
    }
   }
+  return(overlap);
  }
 
  public boolean checkRect(int x0, int y0, int w, int h)
@@ -1369,11 +1432,10 @@ public class Image
     {
      dbg.printf("\nseg %4d len %3d x %6.3f y %6.3f curX %6.3f curY %6.3f " +
 		"dist %7.3f\n\n",
-		seg.num, seg.size(), seg.x, seg.y, seg.curX, seg.curY, seg.dist);
-//     for (String seg1 : seg)
+		seg.num, seg.size(), seg.x, seg.y,
+		seg.curX, seg.curY, seg.dist);
      for (Image.GSeg seg1 : seg)
      {
-//      dbg.printf("%s", seg1);
       dbg.printf("%s", seg1.gCode);
      }
     }
@@ -1383,7 +1445,7 @@ public class Image
 				    (float) (x * ncScale),
 				    (float) (y * ncScale));
 //    g.draw(shape);
-//    for (String gCode : seg)
+
     for (Image.GSeg gCode : seg)
     {
      out.printf("%s", gCode.gCode);
@@ -1464,7 +1526,9 @@ public class Image
  public boolean track(int[] data, int i0) throws Exception
  {
   boolean remove = false;
+  boolean lastArc = false;
   String comment;
+  String cmt;
   GSeg gSeg;
   seg = new Seg(segNum);
   segList.add(seg);
@@ -1549,10 +1613,11 @@ public class Image
 				     depth(offset), lLinearFeed)));
      }
      comment = String.format("(s %3d p %3d)", segNum, pad.index);
+     cmt = String.format("p%d", pad.index);
      seg.addCircle(x0, y0, radius,
 		   String.format(g3Fmt + g3FmtIJ + "f%s %s\n",
 				 c(x0), c(y0), 0.0, c(radius),
-				 lCircularFeed, comment));
+				 lCircularFeed, comment), cmt);
      seg.add(new GSeg(String.format("g0 z%s\n", lRetract)));
      return(true);
     }
@@ -1621,6 +1686,7 @@ public class Image
   int leg = 0;
   int ofs = 0;
   int i0Last = i0;
+  
   int lastX = 0;
   int lastY = 0;
   while (true)
@@ -1751,25 +1817,39 @@ public class Image
      double y0 = y / ncScale;
      lastX = x;
      lastY = y;
+     
      comment = String.format("(s %3d l %4d %4d a %s)",
-			     segNum, leg, len, d.toString());
+			     segNum, leg, len, dLast.toString());
+     cmt = String.format("%d-%d", segNum, leg);
+     double xL = (i0Last % w0) / ncScale;
+     double yL = (i0Last / w0) / ncScale;
      if (!probeFlag)
      {
-      seg.add(x0, y0, String.format(g1Fmt + "f%s %s\n",
-				  c(x0), c(y0), lLinearFeed, comment));
+      seg.add(xL, yL, String.format(g1Fmt + "f%s %s\n",
+				    c(xL), c(yL), lLinearFeed, comment), cmt);
      }
      else
      {
       Probe.SegmentList segs = probe.splitLine(seg.curX, seg.curY, 0.0,
-					       x0, y0, 0.0);
+					       xL, yL, 0.0);
       String tmp = String.format(" f%s %s\n", lLinearFeed, comment);
+//      boolean prt = segs.size() > 1;
       for (Probe.Point p : segs)
       {
+//       if (prt)
+//       {
+//	seg.add(new GSeg(String.format("(" + g1Fmt + "f%s)\n", c(xL), c(yL),
+//				       lLinearFeed)));
+//	prt = false;
+//       }
        seg.add(p.x, p.y, String.format(g1Fmt + "z%s%s",
-				       c(p.x), c(p.y), depth(p.z), tmp));
-       tmp = "\n";
+				       c(p.x), c(p.y), depth(p.z), tmp), cmt);
+       tmp = " (b)\n";
       }
      }
+
+     seg.add(x0, y0, String.format(g1Fmt + "(c)\n", c(x0), c(y0)));
+
      Circle.ArcEnd arcEnd;
      arcEnd = pad.ap.c.markArc(this, pad.pt, x, y); /* mark path and find end */
      i0 = arcEnd.i0;
@@ -1788,7 +1868,7 @@ public class Image
 		   pad.index, x, y, ix1, iy1, dist);
 	dbg.flush();
        }
-       comment = String.format("(s %3d p %3d b)", segNum, pad.index);
+       comment = String.format("(s %3d p %3d d)", segNum, pad.index);
        if (!probeFlag)
        {
 	seg.add(x0, y0, String.format(g1Fmt + "f%s %s\n",
@@ -1824,12 +1904,13 @@ public class Image
 		   x1, y1, endX, endY, rerr);
        }
        comment = String.format("(s %3d p %3d)", segNum, pad.index);
+       cmt = String.format("p%d", pad.index);
        if (!probeFlag)
        {
 	seg.addArc(endX, endY, i, j,
 		   String.format(g3Fmt + g3FmtIJ + "f%s %s\n",
 				 c(endX), c(endY), c(i), c(j),
-				 lCircularFeed, comment));
+				 lCircularFeed, comment), cmt);
        }
        else
        {
@@ -1837,16 +1918,17 @@ public class Image
 	seg.addArc(endX, endY, i, j,
 		   String.format(g3Fmt + "z%s " + g3FmtIJ + "f%s %s\n",
 				 c(endX), c(endY), depth(offset), c(i), c(j),
-				 lCircularFeed, comment));
+				 lCircularFeed, comment), cmt);
        }
-
+       lastArc = true;
+       
        if (err > .0005)
        {
 	if (dbgFlag)
 	{
 	 dbg.printf("add segment\n");
 	}
-	comment = "(c)";
+	comment = "(e)";
 	if (!probeFlag)
 	{
 	 seg.add(x1, y1, String.format(g1Fmta + " f%s %s)\n",
@@ -1856,7 +1938,7 @@ public class Image
 	{
 	 double offset = probe.interpolate(x1, y1);
 	 seg.add(x1, y1, String.format(g1Fmta + "z%s f%s %s\n",
-				       x1, y1, depth(offset),
+				       c(x1), c(y1), depth(offset),
 				       lLinearFeed, comment));
 	}
        }
@@ -1897,25 +1979,40 @@ public class Image
     }
     if (output)
     {
-     double tx = x / ncScale;
-     double ty = y / ncScale;
-     comment = String.format("(s %3d l %4d %4d d %s)",
-			     segNum, leg, len, d.toString());
-     if (!probeFlag)
+     if (lastArc && (len < 2))
      {
-      seg.add(tx, ty, String.format(g1Fmt + "f%s %s\n", c(tx), c(ty), 
-				    lLinearFeed, comment));
+      lastArc = false;
      }
      else
      {
-      Probe.SegmentList segs = probe.splitLine(seg.curX, seg.curY, 0.0,
-					       tx, ty, 0.0);
-      String tmp = String.format(" f%s %s\n", lLinearFeed, comment);
-      for (Probe.Point p : segs)
+      double tx = x / ncScale;
+      double ty = y / ncScale;
+      comment = String.format("(s %3d l %4d %4d f %s)",
+			      segNum, leg, len, dLast.toString());
+      cmt = String.format("%d-%d", segNum, leg);
+      if (!probeFlag)
       {
-       seg.add(p.x, p.y, String.format(g1Fmt + "z%s%s",
-				       c(p.x), c(p.y), depth(p.z), tmp));
-       tmp = "\n";
+       seg.add(tx, ty, String.format(g1Fmt + "f%s %s\n", c(tx), c(ty), 
+				     lLinearFeed, comment), cmt);
+      }
+      else
+      {
+       Probe.SegmentList segs = probe.splitLine(seg.curX, seg.curY, 0.0,
+						tx, ty, 0.0);
+       String tmp = String.format(" f%s %s\n", lLinearFeed, comment);
+//       boolean prt = segs.size() > 1;
+       for (Probe.Point p : segs)
+       {
+//	if (prt)
+//	{
+//	 seg.add(new GSeg(String.format("(" + g1Fmt + "f%s)\n", c(tx), c(ty),
+//					lLinearFeed)));
+//	 prt = false;
+//	}
+	seg.add(p.x, p.y, String.format(g1Fmt + "z%s%s",
+					c(p.x), c(p.y), depth(p.z), tmp), cmt);
+	tmp = " (g)\n";
+       }
       }
      }
     }
@@ -1955,19 +2052,20 @@ public class Image
   {
    double tx = x / ncScale;
    double ty = y / ncScale;
-   comment = String.format("(s %3d l %4d %4d e %s)",
-			   segNum, leg, len, d.toString());
+   comment = String.format("(s %3d l %4d %4d h %s)",
+			   segNum, leg, len, dLast.toString());
+   cmt = String.format("%d-%d", segNum, leg);
    if (!probeFlag)
    {
     seg.add(tx, ty, String.format(g1Fmt + "f%s %s\n",
-				  c(tx), c(ty), lLinearFeed, comment));
+				  c(tx), c(ty), lLinearFeed, comment), cmt);
    }
    else
    {
     double offset = probe.interpolate(tx,ty);
     seg.add(tx, ty, String.format(g1Fmt + "z%s f%s %s\n",
-				c(tx), c(ty), depth(offset),
-				lLinearFeed, comment));
+				  c(tx), c(ty), depth(offset),
+				  lLinearFeed, comment), cmt);
    }
    seg.add(new GSeg(String.format("g0 z%s\n\n", lRetract)));
    if (tmp == 0)
@@ -2092,7 +2190,6 @@ public class Image
   }
  }
 
-// public class Seg extends ArrayList<String>
  public class Seg extends ArrayList<Image.GSeg>
  {
   int num;
@@ -2138,7 +2235,6 @@ public class Image
   }
 */
 
-//  public void add(double x, double y, String str)
   public Image.GSeg add(double x, double y, String str)
   {
    double d = Math.hypot(x - curX, y - curY);
@@ -2149,9 +2245,37 @@ public class Image
     dbg.printf("curX %6.3f curY %6.3f x %6.3f y %6.3f dist %6.3f\n\n",
 	       curX, curY, x, y, d);
    }
+   if (dxf)
+   {
+    d1.setLayer(gdraw.tracks);
+    d1.line(x, y);
+   } 
    curX = x;
    curY = y;
-//   add(str);
+   Image.GSeg gSeg = new GSeg(str);
+   add(gSeg);
+   return(gSeg);
+  }
+
+  public Image.GSeg add(double x, double y, String str, String comment)
+  {
+   double d = Math.hypot(x - curX, y - curY);
+   dist += d;
+   if (dbgFlag)
+   {
+    dbg.printf("%s", str);
+    dbg.printf("curX %6.3f curY %6.3f x %6.3f y %6.3f dist %6.3f\n\n",
+	       curX, curY, x, y, d);
+   }
+   if (dxf)
+   {
+    d1.setLayer(gdraw.tracks);
+    d1.line(x, y);
+    d1.setLayer(gdraw.trackNum);
+    d1.text((x + curX) / 2, (y + curY) / 2, 0.001, comment);
+   } 
+   curX = x;
+   curY = y;
    Image.GSeg gSeg = new GSeg(str);
    add(gSeg);
    return(gSeg);
@@ -2168,9 +2292,36 @@ public class Image
 	       x, y, r, d);
    }
    add(new GSeg(str));
+   if (dxf)
+   {
+    d1.setLayer(gdraw.pads);
+    d1.circle(x, y + r, r);
+   }
   }
 
-  public void addArc(double x, double y, double i, double j, String str)
+  public void addCircle(double x, double y, double r, String str,
+			String comment)
+  {
+   double d = 2.0 * Math.PI * r;
+   dist += d;
+   if (dbgFlag)
+   {
+    dbg.printf("%s", str);
+    dbg.printf("curX %6.3f curY %6.3f r %6.4f dist %6.3f\n\n",
+	       x, y, r, d);
+   }
+   add(new GSeg(str));
+   if (dxf)
+   {
+    d1.setLayer(gdraw.pads);
+    d1.circle(x, y + r, r);
+    d1.setLayer(gdraw.padNum);
+    d1.text(x, y + r, .001, comment);
+   }
+  }
+
+  public void addArc(double x, double y, double i, double j, String str,
+		     String comment)
   {
    double cx = curX + i;
    double cy = curY + j;
@@ -2194,6 +2345,9 @@ public class Image
    {
     delta += 2 * Math.PI;
    }
+   dist += r * delta;
+   curX = x;
+   curY = y;
    if (dbgFlag)
    {
     dbg.printf("%s", str);
@@ -2201,10 +2355,17 @@ public class Image
 	       curX, curY, cx, cy);
     dbg.printf("x0 %6.3f y0 %6.3f x1 %6.3f y1 %6.3f r %6.4f " +
 	       "theta0 %4.0f theta1 %4.0f delta %4.0f\n\n",
-	       x0, y0, x1, y1, r, Math.toDegrees(theta0), Math.toDegrees(theta1),
-	       Math.toDegrees(delta));
+	       x0, y0, x1, y1, r, Math.toDegrees(theta0),
+	       Math.toDegrees(theta1), Math.toDegrees(delta));
    }
-   dist += r * delta;
+   if (dxf)
+   {
+    d1.setLayer(gdraw.pads);
+    d1.arc(cx, cy, r, Math.toDegrees(theta0), Math.toDegrees(theta1));
+    d1.setLoc(x, y);
+    d1.setLayer(gdraw.padNum);
+    d1.text(x, y, .001, comment);
+   }
    add(new GSeg(str));
   }
 
@@ -2214,6 +2375,10 @@ public class Image
    y = yLoc;
    curX = xLoc;
    curY = yLoc;
+   if (dxf)
+   {
+    d1.setLoc(xLoc, yLoc);
+   }
   }
 
   public double dist(Seg s)

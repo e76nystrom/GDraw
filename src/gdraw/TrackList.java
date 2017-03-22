@@ -37,9 +37,16 @@ public class TrackList extends ArrayList<TrackList.Track>
  public TrackList(GDraw g)
  {
   gerber = g;
-  dbg = g.dbg;
-  dbgFlag = (dbg != null);
   max = 0;
+ }
+
+ public void setDebug(PrintWriter dbg)
+ {
+  if (dbg != null)
+  {
+   dbgFlag = true;
+   this.dbg = dbg;
+  }
  }
 
  /**
@@ -54,7 +61,7 @@ public class TrackList extends ArrayList<TrackList.Track>
   Track t = null;
   if (!p0.equals(p1))
   {
-   add(t = new Track(max++,p0,p1,a));
+   add(t = new Track(max++, p0, p1, a));
    t.print();
   }
   return(t);
@@ -75,8 +82,8 @@ public class TrackList extends ArrayList<TrackList.Track>
   for (int i = 0; i < size(); i++)
   {
    TrackList.Track t = get(i);
-   t.pt[0].mirror(xSize,ySize);
-   t.pt[1].mirror(xSize,ySize);
+   t.pt[0].mirror(xSize, ySize);
+   t.pt[1].mirror(xSize, ySize);
   }
  }
 
@@ -145,10 +152,10 @@ public class TrackList extends ArrayList<TrackList.Track>
     int len = (int) pt[0].dist(pt[1]);
     dbg.printf("trk %3d %3d x %6d y %6d " +
 	       "x %6d  y %6d ap %2d %4.3f l %6d\n",
-	       index,gIndex,
-	       pt[0].x,pt[0].y,
-	       pt[1].x,pt[1].y,
-	       ap.index,ap.val1,len);
+	       index, gIndex,
+	       pt[0].x, pt[0].y,
+	       pt[1].x, pt[1].y,
+	       ap.index, ap.val1, len);
    }
   }
  }

@@ -29,8 +29,8 @@ public class Circle
  boolean edge = false;
  boolean track = false;
 
- public static final int BODY = new Color(0x80,0x80,0x80).getRGB();
- public static final int EDGE = new Color(0xf0,0xf0,0x00).getRGB();
+ public static final int BODY = new Color(0x80, 0x80, 0x80).getRGB();
+ public static final int EDGE = new Color(0xf0, 0xf0, 0x00).getRGB();
 
  public Circle(PrintWriter d, int radius)
  {
@@ -38,32 +38,32 @@ public class Circle
   dbgFlag = (dbg != null);
   y = 0;
   x = radius;
-//  dbg.printf("radius %3d\n",radius);
+//  dbg.printf("radius %3d\n", radius);
   pt = new ArrayList<>();
 
   int r2 = radius * radius;
   while (y < x)
   {
    x = (int) (Math.sqrt(r2 - y * y) + .5);
-//   dbg.printf("x %3d y %3d\n",x,y);
-   pt.add(new Pt(x,y));
+//   dbg.printf("x %3d y %3d\n", x, y);
+   pt.add(new Pt(x, y));
    y++;
   }
 
   if (dbgFlag)
   {
-   dbg.printf("change to x x %3d y %3d\n",x,y);
+   dbg.printf("change to x x %3d y %3d\n", x, y);
   }
   x = (int) (Math.sqrt(r2 - y * y) + .5);
-//  dbg.printf("x %3d y %3d\n",x,y);
-  pt.add(new Pt(x,y));
+//  dbg.printf("x %3d y %3d\n", x, y);
+  pt.add(new Pt(x, y));
 
   while (x > 0)
   {
    x--;
    y = (int) (Math.sqrt(r2 - x * x) + .5);
-//   dbg.printf("x %3d y %3d\n",x,y);
-   pt.add(new Pt(x,y));
+//   dbg.printf("x %3d y %3d\n", x, y);
+   pt.add(new Pt(x, y));
   }
 
   double maxErr = 0.0;
@@ -85,18 +85,18 @@ public class Circle
     maxPt = p;
    }
    pt0[i] = new Pt(p);
-   pt0[s1--] = new Pt(-p.x,p.y);
-   pt0[s2++] = new Pt(-p.x,-p.y);
+   pt0[s1--] = new Pt(-p.x, p.y);
+   pt0[s2++] = new Pt(-p.x, -p.y);
    if (s3 < len)
    {
-    pt0[s3] = new Pt(p.x,-p.y);
+    pt0[s3] = new Pt(p.x, -p.y);
    }
    s3--;
   }
   if (dbgFlag
   &&  (maxPt != null))
   {
-   dbg.printf("maxerr x %3d y %3d %6.4f\n",maxPt.x,maxPt.y,maxErr);
+   dbg.printf("maxerr x %3d y %3d %6.4f\n", maxPt.x, maxPt.y, maxErr);
   }
  }
 
@@ -154,7 +154,8 @@ public class Circle
   {
    if (j0 != pt0.length)
    {
-    dbg.printf("str %3d x %3d y %3d theta %3.0f\n",j0,p.x,p.y,Math.toDegrees(angle(p)));
+    dbg.printf("str %3d x %3d y %3d theta %3.0f\n",
+	       j0, p.x, p.y, Math.toDegrees(angle(p)));
    }
    else
    {
@@ -173,7 +174,8 @@ public class Circle
    {
     if (dbgFlag)
     {
-     dbg.printf("end %3d x %3d y %3d theta %3.0f\n",j0,p.x,p.y,Math.toDegrees(angle(p)));
+     dbg.printf("end %3d x %3d y %3d theta %3.0f\n",
+		j0, p.x, p.y, Math.toDegrees(angle(p)));
     }
     return(i0Prev);
    }
@@ -193,7 +195,7 @@ public class Circle
 
  public double angle(Pt pt)
  {
-  double theta = Math.atan2((double) pt.y,(double) pt.x);
+  double theta = Math.atan2((double) pt.y, (double) pt.x);
   if (theta < 0)
   {
    theta += 2 * Math.PI;
@@ -226,7 +228,7 @@ public class Circle
 
   if (dbgFlag)
   {
-   dbg.printf("xc %4d yc %4d x0 %3d y0 %3d\n",xCen,yCen,x0,y0);
+   dbg.printf("xc %4d yc %4d x0 %3d y0 %3d\n", xCen, yCen, x0, y0);
   }
 
   /* follow point list to find start */
@@ -248,7 +250,7 @@ public class Circle
   {
    if (j0 != pt0.length)
    {
-    dbg.printf("str %3d x %3d y %3d angle %3.0f\n",j0,p.x,p.y,
+    dbg.printf("str %3d x %3d y %3d angle %3.0f\n", j0, p.x, p.y,
 	       Math.toDegrees(arcEnd.start));
    }
    else
@@ -270,7 +272,7 @@ public class Circle
     arcEnd.i0 = i0Prev;
     if (dbgFlag)
     {
-     dbg.printf("end %3d x %3d y %3d angle %3.0f\n",j0,p.x,p.y,
+     dbg.printf("end %3d x %3d y %3d angle %3.0f\n", j0, p.x, p.y,
 		Math.toDegrees(arcEnd.end));
     }
     return(arcEnd);

@@ -42,7 +42,10 @@ public class Probe
 
  double xSize;
  double ySize;
- double margin;
+
+ double margin = 0.125;
+ double retract = 0.020;
+ double depth = -0.010;
 
  int xN = 0;
  int yN = 0;
@@ -67,16 +70,11 @@ public class Probe
  
  public boolean readFile(String fileName)
  {
-  File f = new File(fileName);
-  if (!f.exists())
-  {
-   System.err.printf("probe file %s does not exist\n", fileName);
-   return(false);
-  }
+  System.out.printf("Probe File %s\n", fileName);
 
   String ngcProbe = fileName.replaceFirst("\\.prb", "p.ngc");
   File f1 = new File(ngcProbe);
-  if (!f.exists())
+  if (!f1.exists())
   {
    System.err.printf("probe gcode file %s does not exist\n", ngcProbe);
    return(false);
@@ -104,11 +102,8 @@ public class Probe
 	       "x(\\s*-?\\d*.?\\d*)\\s*" +
 	       "y(\\s*-?\\d*.?\\d*)\\s*" +
 	       "\\)");
-   System.out.println(s);
    Pattern p0 = Pattern.compile(s);
-   Pattern p1 = Pattern.compile("[\\(\\s]");
    Pattern p2 = Pattern.compile("\\(?\\s*([a-zA-Z]+)\\s+(-?\\d*.?\\d+)");
-//   Pattern p2 = Pattern.compile("\\(?(\\s*[a-zA-Z]+)");
    while ((line = in.readLine()) != null)
    {
     line = line.trim();
@@ -117,17 +112,13 @@ public class Probe
     {
      MatchResult mr = m.toMatchResult();
      int count = mr.groupCount();
-//     System.out.printf("%d\n", count);
      if (count == 4)
      {
-       int i = Integer.valueOf(m.group(1));
-       int j = Integer.valueOf(m.group(2));
-       double x = Double.valueOf(m.group(3));
-       double y = Double.valueOf(m.group(4));
-       locList.append(i, j, x, y);
-//      System.out.printf("%s %s %s %s\n", m.group(1), m.group(2),
-//			m.group(3), m.group(4));
-//      System.out.printf("%s\n", line);
+      int i = Integer.valueOf(m.group(1));
+      int j = Integer.valueOf(m.group(2));
+      double x = Double.valueOf(m.group(3));
+      double y = Double.valueOf(m.group(4));
+      locList.append(i, j, x, y);
      }
      continue;
     }
@@ -137,8 +128,6 @@ public class Probe
      if (m.find())
      {
       MatchResult mr = m.toMatchResult();
-      int count = mr.groupCount();
-//      System.out.printf("%d\n", count);
       String var = m.group(1);
       double val;
       try
@@ -149,11 +138,6 @@ public class Probe
       {
        val = 0.0;
       }
-//      System.out.printf("|%s| %d  %6.4f\n", var, var.length(), val);
-//      for (int i = 0; i < var.length(); i++)
-//      {
-//       System.out.printf("%d %c\n", i, var.charAt(i));
-//      }
       switch (var)
       {
       case "xSize":
@@ -161,6 +145,12 @@ public class Probe
        break;
       case "ySize":
        ySize = val;
+       break;
+      case "retract":
+       retract = val;
+       break;
+      case "depth":
+       depth = val;
        break;
       case "xPoints":
        xN = (int) val;
@@ -190,29 +180,13 @@ public class Probe
    System.err.printf("error reading probe file %s\n", fileName);
    return(false);
   }
-//  for (Location l : locList)
-//  {
-//   System.out.printf("%d %d x%6.4f y%6.4f\n", l.i, l.j, l.x, l.y);
-//  }
-  
-//    Matcher m = p0.matcher(line);
-//    if (m.find())
-//    {
-//     MatchResult mr = m.toMatchResult();
-//     int count = mr.groupCount();
-//     System.out.printf("%d\n", count);
-//     if (count == 4)
-//     {
-//      int i = Integer.valueOf(mr.group(1));
-//      int j = Integer.valueOf(mr.group(2));
-//      double x = Double.valueOf(mr.group(3));
-//      double y = Double.valueOf(mr.group(4));
-//      locList.append(i, j, x, y);
-//      System.out.printf("%s %s %s %s\n", mr.group(1), mr.group(2),
-//			mr.group(3), mr.group(4));
-//      System.out.printf("%s\n", line);
-//     }
-//    }
+
+  File f = new File(fileName);
+  if (!f.exists())
+  {
+   System.err.printf("probe file %s does not exist\n", fileName);
+   return(false);
+  }
 
   try
   {
@@ -223,9 +197,6 @@ public class Probe
    System.err.printf("probe file %s does not exist\n", fileName);
    return(false);
   }
-
-//  ArrayList<Double> xList = new ArrayList<>();
-//  ArrayList<Double> yList = new ArrayList<>();
 
   xMin = 9999.0;
   yMin = 9999.0;
@@ -257,36 +228,7 @@ public class Probe
      System.err.printf("line %2d %s\n", lineNum, line);
      continue;
     }
-//    listAdd(xList, x);
-//    listAdd(yList, y);
     points.add(new Point(x, y, z));
-/*
-    if (x < xMin)
-    {
-     xMin = x;
-    }
-    if (y < yMin)
-    {
-     yMin = y;
-    }
-    if (z < zMin)
-    {
-     zMin = z;
-    }
-
-    if (x > xMax)
-    {
-     xMax = x;
-    }
-    if (y > yMax)
-    {
-     yMax = y;
-    }
-    if (z > zMax)
-    {
-     zMax = z;
-    }
-*/
    }
    in.close();
   }
@@ -297,13 +239,6 @@ public class Probe
   }
   xMin = margin;
   yMin = margin;
-//  xN = xList.size();
-//  yN = yList.size();
-
-//  Collections.sort(xList);
-//  Collections.sort(yList);
-//  xStep = xList.get(1) - xList.get(0);
-//  yStep = yList.get(1) - yList.get(0);
 
   zMatrix = new double[xN][yN];
   for (Point p : points)
@@ -313,15 +248,12 @@ public class Probe
    {
     zMatrix[l.i][l.j] = p.z;
    }
-//   int i = (int) Math.floor((p.x - xMin) / xStep);
-//   int j = (int) Math.floor((p.y - yMin) / yStep);
-//   zMatrix[i][j] = p.z;
   }
 
   double offset = zMatrix[0][0];
   for (int i = 0; i < xN; i++)
   {
-   for (int j = 0; j < xN; j++)
+   for (int j = 0; j < yN; j++)
    {
     zMatrix[i][j] -= offset;
    }
@@ -379,10 +311,10 @@ public class Probe
   double a1 = 1.0 - a;
   double b1 = 1.0 - b;
 
-  return(a1 * b1 * zMatrix[j]    [i]     +
-	 a1 * b  * zMatrix[j + 1][i]     +
-	 a  * b1 * zMatrix[j]    [i + 1] +
-	 a  * b  * zMatrix[j + 1][i + 1]);
+  return(a1 * b1 * zMatrix[i]    [j]     +
+	 a1 * b  * zMatrix[i + 1][j]     +
+	 a  * b1 * zMatrix[i]    [j + 1] +
+	 a  * b  * zMatrix[i + 1][j + 1]);
  }
 
  public Probe.SegmentList splitLine(double x1, double y1, double z1,
@@ -533,29 +465,15 @@ public class Probe
 
  public class LocationList extends ArrayList<Location>
  {
-//  int xN;
-//  int yN;
   int index;
   
   public LocationList()
   {
-//   xN = 0;
-//   yN = 0;
    index = 0;
   }
 
   public void append(int i, int j, double x, double y)
   {
-/*
-   if (i > xN)
-   {
-    xN = i;
-   }
-   if (j > yN)
-   {
-    yN = j;
-   }
-*/
    add(new Location(i, j, x, y));
   }
 
@@ -575,14 +493,13 @@ public class Probe
     double dx = l0.x - x;
     double dy = l0.y - y;
     double d = Math.hypot(dx, dy);
-//    System.out.printf("%d %d dx %7.4f dy %7.4f d %7.4f\n", l0.i, l0.j, dx, dy, d);
     if (d < 0.001)
     {
-//     System.out.printf("found %d %d\n", l0.i, l0.j);
      return(l0);
     }
     index += 1;
    }
+   index = 0;
    return(null);
   }
  }

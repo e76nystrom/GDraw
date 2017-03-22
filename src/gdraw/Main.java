@@ -42,7 +42,7 @@ public class Main
   Pattern p1Option = Pattern.compile("--([a-zA-Z]*)=?(\\S*)");
   String line = "";
   
-  double depth = -0.009;
+  double depth = -0.006;
   double retract = 0.020;
   double linearFeed = 14.0;
   double circularFeed = 14.0;
@@ -59,7 +59,7 @@ public class Main
       line = line.trim();
       if (line.length() != 0)
       {
-       line = line.replaceAll(" +"," ");
+       line = line.replaceAll(" +", " ");
        if (!line.startsWith("/"))
        {
 	System.out.println(line);
@@ -97,75 +97,88 @@ public class Main
      // System.out.printf("%c\n", c);
      switch (c)
      {
-     case 'r':
+     case 'r':			/* rotate */
       rotate = true;
       break;
-     case 'x':
+     case 'x':			/* mirror x */
       mirror = true;
       if (sc.hasNextDouble())
       {
        xSize = sc.nextDouble();
       }
       break;
-     case 'y':
+     case 'y':			/* mirror y */
       mirror = true;
       if (sc.hasNextDouble())
       {
        ySize = sc.nextDouble();
       }
       break;
-     case 'd':
+     case 'd':			/* debug */
       debug = true;
       break;
-     case 'c':
+     case 'c':			/* generate dxf file */
       dxf = true;
       break;
-     case 'b':
+     case 'b':			/* generate extra png files */
       bmp = true;
       break;
-     case 'D':
+     case 'D':			/* debug, dxf and png files */
       debug = true;
       dxf = true;
       bmp = true;
       break;
-     case 'v':
+     case 'v':			/* use variables in output */
       variables = true;
       break;
      case 'm':
-      metric = true;
+      metric = true;		/* metric */
       break;
-     case 'p':
+     case 'p':			/* read probe data */
       probe = true;
-      if (count >= 2)
-      {
-       probeFile = m.group(2);
-      }
      default:
       break;
      }
     }
-    else if (count == 2)
+   }
+   else if (sc.hasNext(p1Option))
+   {
+    String option = sc.next(p1Option);
+    MatchResult m = sc.match();
+    option = m.group(1);
+    String tmp = m.group(2);
+    if (option.equals("probe"))	/* probe with parameters */
     {
-     option = m.group(1);
+     probe = true;
+     if (tmp.length() > 0)
+     {
+      probeFile = tmp;
+     }
+    }
+    else
+    {
      try
      {
-      double val = Double.valueOf(m.group(2));
-      switch (option)
+      if (tmp.length() > 0)
       {
-      case "depth":
-       depth = val;
-       break;
-      case "retract":
-       retract = val;
-       break;
-      case "linear":
-       linearFeed = val;
-       break;
-      case "circular":
-       circularFeed = val;
-       break;
-      default:
-       break;
+       double val = Double.valueOf(tmp);
+       switch (option)
+       {
+       case "depth":		/* milling depth */
+	depth = val;
+	break;
+       case "retract":		/* retract during milling */
+	retract = val;
+	break;
+       case "linear":		/* linear feed rate */
+	linearFeed = val;
+	break;
+       case "circular":		/* circular feed rate */
+	circularFeed = val;
+	break;
+       default:
+	break;
+       }
       }
      }
      catch (NumberFormatException e)
@@ -193,16 +206,17 @@ public class Main
 
   if (inputFile.length() != 0)
   {
-   System.out.printf("gdraw 03/11/2017\n");
+   System.out.printf("gdraw 03/18/2017\n");
    System.out.printf("Processing %s", inputFile);
    if (mirror)
    {
-    System.out.printf(" Mirror x %5.3f y %5.3f\n",xSize,ySize);
+    System.out.printf(" Mirror x %5.3f y %5.3f\n", xSize, ySize);
    }
    else
    {
     System.out.println();
    }
+   
    GDraw gdraw = new GDraw();
    gdraw.setVariables(variables);
    gdraw.setMetric(metric);

@@ -30,15 +30,22 @@ public class PadList extends ArrayList<PadList.Pad>
  public PadList(GDraw g)
  {
   gerber = g;
-  dbg = g.dbg;
-  dbgFlag = (dbg != null);
   max = 0;
+ }
+
+ public void setDebug(PrintWriter dbg)
+ {
+  if (dbg != null)
+  {
+   dbgFlag = true;
+   this.dbg = dbg;
+  }
  }
 
  public Pad add(Pt p, ApertureList.Aperture a)
  {
   Pad pad;
-  add(pad = new Pad(max++,p,a));
+  add(pad = new Pad(max++, p, a));
   pad.print(dbg);
   return(pad);
  }
@@ -48,7 +55,7 @@ public class PadList extends ArrayList<PadList.Pad>
   for (int i = 0; i < size(); i++)
   {
    Pad p = get(i);
-   if (p.ap.connected(p.pt,pt))
+   if (p.ap.connected(p.pt, pt))
    {
     return(p);
    }
@@ -70,7 +77,7 @@ public class PadList extends ArrayList<PadList.Pad>
   for (int i = 0; i < size(); i++)
   {
    PadList.Pad p = get(i);
-   p.pt.mirror(xSize,ySize);
+   p.pt.mirror(xSize, ySize);
   }
  }
 
@@ -99,7 +106,7 @@ public class PadList extends ArrayList<PadList.Pad>
    for (int i = 0; i < max; i++)
    {
     Pad pad = (Pad) get(i);
-    dbg.printf("%3d %3d %6d y %6d ",pad.index,pad.gIndex,pad.pt.x,pad.pt.y);
+    dbg.printf("%3d %3d %6d y %6d ", pad.index, pad.gIndex, pad.pt.x, pad.pt.y);
 
     ApertureList.Aperture ap = pad.ap;
     if (ap != null)
@@ -107,11 +114,11 @@ public class PadList extends ArrayList<PadList.Pad>
 
      if (ap.type == ApertureList.Aperture.ROUND)
      {
-      dbg.printf("C %4.3f\n",ap.val1);
+      dbg.printf("C %4.3f\n", ap.val1);
      }
      else if (ap.type == ApertureList.Aperture.SQUARE)
      {
-      dbg.printf("R %4.3f %4.3f\n",ap.val1,ap.val2);
+      dbg.printf("R %4.3f %4.3f\n", ap.val1, ap.val2);
      }
     }
     else
@@ -138,13 +145,13 @@ public class PadList extends ArrayList<PadList.Pad>
    if (a == null)
    {
     System.out.printf("pad %3d null aperture x %6d y %6d\n",
-                      index,pt.x,pt.y);
+                      index, pt.x, pt.y);
    }
   }
   
   public boolean connected(Pt p0)
   {
-   return(ap.connected(pt,p0));
+   return(ap.connected(pt, p0));
   }
 
   @Override public int compareTo(Pad pad)
@@ -171,8 +178,8 @@ public class PadList extends ArrayList<PadList.Pad>
    PadList.PadDist padDist = new PadDist();
 
    double r0 = ap.val1 * GDraw.SCALE;
-   if ((Math.hypot(pt.x - pt0.x,pt.y - pt0.y) <= r0)
-   ||  (Math.hypot(pt.x - pt1.x,pt.y - pt1.y) <= r0))
+   if ((Math.hypot(pt.x - pt0.x, pt.y - pt0.y) <= r0)
+   ||  (Math.hypot(pt.x - pt1.x, pt.y - pt1.y) <= r0))
    {
     return(padDist);
    }
@@ -189,7 +196,7 @@ public class PadList extends ArrayList<PadList.Pad>
     dbg.printf("%3d x %6d y %6d " + 
 	       "pt0.x %6d pt0.y %6d " +
 	       "pt1.x %6d pt1.y %6d u %6.3f\n",
-	       index,pt.x,pt.y,pt0.x,pt0.y,pt1.x,pt1.y,u);
+	       index, pt.x, pt.y, pt0.x, pt0.y, pt1.x, pt1.y, u);
    }
 
    if ((u < 0.0) || u > 1.0)
@@ -200,11 +207,11 @@ public class PadList extends ArrayList<PadList.Pad>
    int xt = (int) (pt0.x + u * xdel);
    int yt = (int) (pt0.y + u * ydel);
 
-   padDist.dist = (int) Math.floor(Math.hypot(xt - pt.x,yt - pt.y));
+   padDist.dist = (int) Math.floor(Math.hypot(xt - pt.x, yt - pt.y));
 
    if (dbgFlag)
    {
-    dbg.printf("xt %6d yt %6d dist %6d\n",xt,yt,padDist.dist);
+    dbg.printf("xt %6d yt %6d dist %6d\n", xt, yt, padDist.dist);
    }
 
    padDist.x = xt;
@@ -216,7 +223,7 @@ public class PadList extends ArrayList<PadList.Pad>
   {
    if (dbgFlag)
    {
-    dbg.printf("x %6d y %6d pad %3d\n",pt.x,pt.y,index);
+    dbg.printf("x %6d y %6d pad %3d\n", pt.x, pt.y, index);
    }
   }
  }

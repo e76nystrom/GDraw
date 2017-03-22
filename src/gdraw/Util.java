@@ -89,7 +89,7 @@ public class Util
    */
   public double dist(Pt p)
   {
-   return(Math.hypot((double) (x - p.x),(double) (y - p.y)));
+   return(Math.hypot((double) (x - p.x), (double) (y - p.y)));
   }
 
   /**
@@ -179,7 +179,7 @@ public class Util
    int xt = (int) (pt1.x + u * xdel);
    int yt = (int) (pt1.y + u * ydel);
 
-   double d = Math.hypot(xt - x,yt- y);
+   double d = Math.hypot(xt - x, yt- y);
    return((int) Math.floor(d));
   }
 
@@ -208,7 +208,7 @@ public class Util
     }
    }
 
-   angle = Math.atan2(dy,dx);
+   angle = Math.atan2(dy, dx);
    if (angle <= 0)
    {
     angle = 2.0 * Math.PI + angle;
@@ -227,11 +227,11 @@ public class Util
   {
    int dx = x - p.x;
    int dy = y - p.y;
-   return(octant(dx,dy));
+   return(octant(dx, dy));
   }
 
   /**
-   * Determine octant of position (x,y) with respect to origin.
+   * Determine octant of position (x, y) with respect to origin.
    * 
    * @param x x location
    * @param y y location

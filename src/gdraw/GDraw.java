@@ -52,13 +52,16 @@ public class GDraw
  int yMax = 0;
  float scale = 10.0f;
  Dxf d = null;
+ Dxf d1 = null;
  boolean dbgFlag;
  String tracks = "tracks";
+ String rapid = "rapid";
  String trackNum = "trackNum";
  String pads = "pads";
  String padNum = "padNum";
  String outline = "outline";
  boolean dxf = false;
+ SimpleDateFormat sdf = new SimpleDateFormat("EEE LLL dd HH:mm:ss yyyy");
 
  public static final boolean CSV = false;
  public static final double BIT_RADIUS = .010;
@@ -145,6 +148,7 @@ public class GDraw
   xSize = (int) (x * SCALE);
   ySize = (int) (y * SCALE);
   dxf = dxfFlag;
+  dbgFlag = debug;
   apertureList = new ApertureList(this);
   padList = new PadList(this);
   trackList = new TrackList(this);
@@ -245,6 +249,8 @@ public class GDraw
    image.setLinear(linearFeed);
    image.setCircular(circularFeed);
    image.setProbe(probeFlag, probe);
+   image.setDxf(dxf, d1);
+   image.setMirror(mirror, xSize, ySize);
    probe.setDebug(dbgFlag, dbg);
 
    image.getData();
@@ -265,9 +271,13 @@ public class GDraw
    image.drawTracks();
 
    image.getData();
-   image.adjacentPads(false);
+   boolean overlap = image.adjacentPads(false);
    image.getData();
-   image.adjacentPads(true);
+   overlap |= image.adjacentPads(true);
+   if (overlap)
+   {
+    System.exit(1);
+   }
    image.getData();
    image.padTrack();
    image.adjacentFix();
@@ -397,6 +407,21 @@ public class GDraw
     d.layer(outline, Dxf.BLUE);
     d.setLayer(outline);
     d.rectangle(0.0, 0.0, xMax / SCALE, yMax / SCALE);
+
+    d1 = new Dxf();
+    if (d1.init(baseFile + "1.dxf"))
+    {
+     d1.layer(tracks, Dxf.RED);
+     d1.layer(trackNum, Dxf.RED);
+     d1.layer(pads, Dxf.BLUE);
+     d1.layer(padNum, Dxf.BLUE);
+     d1.layer(rapid, Dxf.GREEN);
+     d1.rectangle(0.0, 0.0, xMax / SCALE, yMax / SCALE);
+    }
+    else
+    {
+     dxf = false;
+    }
    }
    else
    {
@@ -420,7 +445,11 @@ public class GDraw
     if (debug)
     {
      dbg = new PrintWriter(new BufferedWriter(new FileWriter(fDbg)));
+     dbg.printf("(%s %s)\n", fIn.getAbsolutePath(), sdf.format(new Date()));
      dbgFlag = true;
+     padList.setDebug(dbg);
+     apertureList.setDebug(dbg);
+     trackList.setDebug(dbg);
     }
     else
     {
@@ -476,6 +505,7 @@ public class GDraw
   if (dxf)
   {
    d.end();
+   d1.end();
   }
  }
 
@@ -488,14 +518,7 @@ public class GDraw
   */
  public void ncHeader(boolean mirror, double xOffset, double yOffset)
  {
-  SimpleDateFormat sdf = new SimpleDateFormat("EEE LLL dd HH:mm:ss yyyy");
   out.printf("(%s %s)\n", fIn.getAbsolutePath(), sdf.format(new Date()));
-  if (probeFlag)
-  {
-   File f = new File(probeFile);
-   out.printf("(probe file %s %s)\n", f.getAbsolutePath(),
-	      sdf.format(f.lastModified()));
-  }
   double mScale = 1.0;
   if (!metric)
   {
@@ -546,30 +569,51 @@ public class GDraw
 
   if (probeFlag)
   {
+   File f = new File(probeFile);
+   out.printf("(%s %s)\n", f.getAbsolutePath(), sdf.format(f.lastModified()));
    double[][] zMatrix = probe.zMatrix;
    int len = zMatrix[0].length;
-   out.printf("(  ");
+   out.printf("(         ");
    for (int i = 0; i < zMatrix.length; i++)
    {
     out.printf("   %2d   ", i);
    }
    out.printf(")\n");
+   out.printf("(         ");
+   for (int i = 0; i < zMatrix.length; i++)
+   {
+    out.printf(" %6.3f ", probe.margin + probe.xStep * i);
+   }
+   out.printf(")\n");
    for (int j = len - 1; j >= 0; j--)
    {
-    out.printf("(%2d", j);
+    out.printf("(%2d %6.3f", j, probe.margin + probe.yStep * j);
     for (int i = 0; i < zMatrix.length; i++)
     {
      out.printf(" %7.4f", zMatrix[i][j]);
     }
     out.printf(")\n");
    }
-   out.println();
+   out.printf("\n");
   }
   
   out.printf("g0 z%5.3f        (move tool above clamps)\n", 0.500 * mScale);
   out.printf("g0 x%5.3f y%5.3f (move tool away from clamps)\n", 
 	     0.250 * mScale,  0.250 * mScale);
   out.printf("\n");
+  if (probeFlag)
+  {
+   out.printf("g0 x%6.4f y%6.4f (start position)\n",
+	      probe.margin * mScale, probe.margin * mScale);
+   out.printf("m0	(pause to check position)\n");
+   out.printf("g0 z%6.4f\n", probe.retract * mScale);
+   out.printf("g38.2 z%6.4f f%3.1f\n", probe.depth * mScale, 1.0 * mScale);
+   out.printf("g10 L20 P0 z0.000 (zero z)\n");
+   out.printf("g0 z%6.4f\n\n", probe.retract * mScale);
+  }
+  out.printf("s25000    (set spindle speed)\n");
+  out.printf("m3        (start spindle)\n");
+  out.printf("g4 p2.0   (wait for spindle to come to speed)\n");
   if (this.variables)
   {
    out.printf("f[#5]     (set feed rate)\n");
@@ -578,9 +622,6 @@ public class GDraw
   {
    out.printf("f%4.1f    (set feed rate)\n", this.linearFeed);
   }
-  out.printf("s25000    (set spindle speed)\n");
-  out.printf("m3        (start spindle)\n");
-  out.printf("g4 p1.0   (wait for spindle to come to speed)\n");
   out.printf("\n");
  }
 
@@ -631,7 +672,7 @@ public class GDraw
       default:
        {
         System.out.printf("aperture %d not rectangular or curcular\n",
-                apertureNo);
+			  apertureNo);
         double size0 = in.getFVal();
         double size1 = in.getFVal();
         apertureList.add(apertureNo, size0, size1);

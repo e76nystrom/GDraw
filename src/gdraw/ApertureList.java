@@ -45,7 +45,7 @@ public class ApertureList
  {
   if (i < MAXAPERTURE)
   {
-   aperture[i] = new Aperture(i,v1);
+   aperture[i] = new Aperture(i, v1);
   }
  }
 
@@ -53,7 +53,7 @@ public class ApertureList
  {
   if (i < MAXAPERTURE)
   {
-   aperture[i] = new Aperture(i,v1,v2);
+   aperture[i] = new Aperture(i, v1, v2);
   }
  }
 
@@ -115,11 +115,11 @@ public class ApertureList
     {
      if (ap.type == Aperture.ROUND)
      {
-      dbg.printf("%2d C %4.3f\n",i,ap.val1);
+      dbg.printf("%2d C %4.3f\n", i, ap.val1);
      }
      else if (ap.type == Aperture.SQUARE)
      {
-      dbg.printf("%2d R %4.3f %4.3f\n",i,ap.val1,ap.val2);
+      dbg.printf("%2d R %4.3f %4.3f\n", i, ap.val1, ap.val2);
      }
     }
    }
@@ -167,11 +167,11 @@ public class ApertureList
    if (c == null)
    {
     int r = (int) (iVal1 / (2 * image.scale));
-    c = new Circle(dbg,r);
+    c = new Circle(dbg, r);
    }
    int x = (int) (pt.x / image.scale);
    int y = (int) (pt.y / image.scale);
-   c.fill(image.data,image.w0,x,y);
+   c.fill(image.data, image.w0, x, y);
   }
 
   public void rotate()
@@ -193,7 +193,7 @@ public class ApertureList
    {
     double size = iVal1 / 2;
     double dist = p0.dist(pt);
-//    dbg.printf("%5d %5d %6.1f\n",p0.x,p0.y,Math.abs(dist - size));
+//    dbg.printf("%5d %5d %6.1f\n", p0.x, p0.y, Math.abs(dist - size));
     if (Math.abs(dist) < (size + 15))
      return(true);
    }

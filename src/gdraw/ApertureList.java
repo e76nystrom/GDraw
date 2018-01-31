@@ -57,6 +57,14 @@ public class ApertureList
   }
  }
 
+ public void add(int i, double v1, double v2, int type)
+ {
+  if (i < MAXAPERTURE)
+  {
+   aperture[i] = new Aperture(i, v1, v2, type);
+  }
+ }
+
  public Aperture get(int i)
  {
   if (i < MAXAPERTURE)
@@ -121,6 +129,10 @@ public class ApertureList
      {
       dbg.printf("%2d R %4.3f %4.3f\n", i, ap.val1, ap.val2);
      }
+     else if (ap.type == Aperture.OVAL)
+     {
+      dbg.printf("%2d O %4.3f %4.3f\n", i, ap.val1, ap.val2);
+     }
     }
    }
   }
@@ -139,6 +151,7 @@ public class ApertureList
 
   public static final int ROUND = 1;
   public static final int SQUARE = 2;
+  public static final int OVAL = 3;
 
   public Aperture(int i, double v1)
   {
@@ -162,6 +175,17 @@ public class ApertureList
    iVal2 = (int) (v2 * GDraw.SCALE);
   }
 
+  public Aperture(int i, double v1, double v2, int type)
+  {
+   this.type = type;
+   typeStr = "s";
+   index = 1;
+   val1 = v1;
+   val2 = v2;
+   iVal1 = (int) (v1 * GDraw.SCALE);
+   iVal2 = (int) (v2 * GDraw.SCALE);
+  }
+  
   public void draw(Image image, Pt pt)
   {
    if (c == null)

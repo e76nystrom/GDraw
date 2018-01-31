@@ -26,6 +26,7 @@ public class PadList extends ArrayList<PadList.Pad>
  boolean dbgFlag;
  PrintWriter dbg;
  int max;
+ boolean compareY = false;	/* compare y */
 
  public PadList(GDraw g)
  {
@@ -52,9 +53,8 @@ public class PadList extends ArrayList<PadList.Pad>
 
  public Pad findPad(Pt pt)
  {
-  for (int i = 0; i < size(); i++)
+  for (Pad p : this)
   {
-   Pad p = get(i);
    if (p.ap.connected(p.pt, pt))
    {
     return(p);
@@ -63,20 +63,27 @@ public class PadList extends ArrayList<PadList.Pad>
   return(null);
  }
 
+ public void setCompareY(boolean cmp)
+ {
+  compareY = cmp;
+  if (dbgFlag)
+  {
+   dbg.printf("setCompareY %s\n", compareY);
+  }
+ }
+
  public void rotate(int xMax)
  {
-  for (int i = 0; i < size(); i++)
+  for (Pad p : this)
   {
-   PadList.Pad p = get(i);
    p.pt.rotate(xMax);
   }
  }
 
  public void mirror(int xSize, int ySize)
  {
-  for (int i = 0; i < size(); i++)
+  for (Pad p : this)
   {
-   PadList.Pad p = get(i);
    p.pt.mirror(xSize, ySize);
   }
  }
@@ -87,11 +94,10 @@ public class PadList extends ArrayList<PadList.Pad>
   {
    dbg.printf("\nDraw Pads\n\n");
   }
-  for (int i = 0; i < max; i++)
+  for (Pad p : this)
   {
-   Pad p = get(i);
    if ((p.pt.x >= 0)
-   ||  (p.pt.y >= 0))
+           ||  (p.pt.y >= 0))
    {
     image.draw(p);
    }
@@ -102,23 +108,29 @@ public class PadList extends ArrayList<PadList.Pad>
  {
   if (dbgFlag)
   {
-   dbg.printf("\nPad List\n\n");
-   for (int i = 0; i < max; i++)
+   dbg.printf("\nPad List %3s\n\n", size());
+   for (Pad my : this)
    {
-    Pad pad = (Pad) get(i);
-    dbg.printf("%3d %3d %6d y %6d ", pad.index, pad.gIndex, pad.pt.x, pad.pt.y);
-
+    Pad pad = (Pad) my;
+    dbg.printf("%3d %3d x %6d y %6d ",
+            pad.index, pad.gIndex, pad.pt.x, pad.pt.y);
     ApertureList.Aperture ap = pad.ap;
     if (ap != null)
     {
 
-     if (ap.type == ApertureList.Aperture.ROUND)
+     switch (ap.type)
      {
-      dbg.printf("C %4.3f\n", ap.val1);
-     }
-     else if (ap.type == ApertureList.Aperture.SQUARE)
-     {
-      dbg.printf("R %4.3f %4.3f\n", ap.val1, ap.val2);
+      case ApertureList.Aperture.ROUND:
+       dbg.printf("C %4.3f\n", ap.val1);
+       break;
+      case ApertureList.Aperture.SQUARE:
+       dbg.printf("R %4.3f %4.3f\n", ap.val1, ap.val2);
+       break;
+      case ApertureList.Aperture.OVAL:
+       dbg.printf("O %4.3f %4.3f\n", ap.val1, ap.val2);
+       break;
+      default:
+       break;
      }
     }
     else
@@ -126,6 +138,7 @@ public class PadList extends ArrayList<PadList.Pad>
      dbg.printf("null\n");
     }
    }
+   dbg.printf("\n");
    dbg.flush();
   }
  }
@@ -158,10 +171,21 @@ public class PadList extends ArrayList<PadList.Pad>
   {
    int compare;
 
-   compare = pt.x - pad.pt.x;
-   if (compare == 0)
+   if (!compareY)
+   {
+    compare = pt.x - pad.pt.x;
+    if (compare == 0)
+    {
+     compare = pt.y - pad.pt.y;
+    }
+   }
+   else
    {
     compare = pt.y - pad.pt.y;
+    if (compare == 0)
+    {
+     compare = pt.x - pad.pt.x;
+    }
    }
    return(compare);
   }

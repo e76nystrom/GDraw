@@ -55,6 +55,7 @@ public class TrackList extends ArrayList<TrackList.Track>
   * @param p0 starting point of track
   * @param p1 ending point of track
   * @param a aperture used to create track
+  * @return 
   */
  public Track add(Pt p0, Pt p1, ApertureList.Aperture a)
  {
@@ -69,9 +70,8 @@ public class TrackList extends ArrayList<TrackList.Track>
 
  public void rotate(int xMax)
  {
-  for (int i = 0; i < size(); i++)
+  for (Track t : this)
   {
-   TrackList.Track t = get(i);
    t.pt[0].rotate(xMax);
    t.pt[1].rotate(xMax);
   }
@@ -79,9 +79,8 @@ public class TrackList extends ArrayList<TrackList.Track>
 
  public void mirror(int xSize, int ySize)
  {
-  for (int i = 0; i < size(); i++)
+  for (Track t : this)
   {
-   TrackList.Track t = get(i);
    t.pt[0].mirror(xSize, ySize);
    t.pt[1].mirror(xSize, ySize);
   }
@@ -95,9 +94,9 @@ public class TrackList extends ArrayList<TrackList.Track>
   if (dbgFlag)
   {
    dbg.printf("\nTrack List\n\n");
-   for (int i = 0; i < max; i++)
+   for (Track t : this)
    {
-    get(i).print();
+    t.print();
    }
   }
  }

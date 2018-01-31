@@ -200,14 +200,19 @@ public class GDraw
      double ty = pad.pt.y / SCALE;
      double w = pad.ap.val1 / 2.0;
      d.setLayer(pads);
-     if (pad.ap.type == ApertureList.Aperture.ROUND)
+     switch (pad.ap.type)
      {
-      d.circle(tx, ty, w);
-     }
-     else if (pad.ap.type == ApertureList.Aperture.SQUARE)
-     {
-      double h = pad.ap.val2 / 2.0;
-      d.rectangle(tx - w, ty - h, tx + w, ty + h);
+      case ApertureList.Aperture.ROUND:
+       d.circle(tx, ty, w);
+       break;
+      case ApertureList.Aperture.SQUARE:
+       double h = pad.ap.val2 / 2.0;
+       d.rectangle(tx - w, ty - h, tx + w, ty + h);
+       break;
+      case ApertureList.Aperture.OVAL:
+       break;
+      default:
+       break;
      }
      d.setLayer(padNum);
      d.text(tx + w + .003, ty + .005, 0.010, String.format("%d", pad.index));
@@ -268,9 +273,19 @@ public class GDraw
    }
    image.setData();
 
+   image.drawOval(padList);
+
    image.drawTracks();
 
-   image.getData();
+   image.checkOverlap();
+
+   image.padTrack();
+
+   image.orderPads(true);
+
+   image.orderPads(false);
+
+/*
    boolean overlap = image.adjacentPads(false);
    image.getData();
    overlap |= image.adjacentPads(true);
@@ -278,8 +293,10 @@ public class GDraw
    {
     System.exit(1);
    }
-   image.getData();
-   image.padTrack();
+*/
+
+   image.scanPads();
+   
    image.adjacentFix();
 
 //   image.getData();
@@ -430,6 +447,7 @@ public class GDraw
   }
 
   fIn = new File(inputFile);
+  System.out.printf("%s\n", inputFile);
   if (fIn.isFile())
   {
    String outputFile = baseFile + ".ngc";
@@ -588,9 +606,9 @@ public class GDraw
    for (int j = len - 1; j >= 0; j--)
    {
     out.printf("(%2d %6.3f", j, probe.margin + probe.yStep * j);
-    for (int i = 0; i < zMatrix.length; i++)
+    for (double[] zMatrix1 : zMatrix)
     {
-     out.printf(" %7.4f", zMatrix[i][j]);
+     out.printf(" %7.4f", zMatrix1[j]);
     }
     out.printf(")\n");
    }
@@ -658,26 +676,33 @@ public class GDraw
      in.skip();
      switch (c)
      {
-      case 'C':
-       double size = in.getFVal();
-       apertureList.add(apertureNo, size);
-       break;
-      case 'R':
-       {
-        double size0 = in.getFVal();
-        double size1 = in.getFVal();
-        apertureList.add(apertureNo, size0, size1);
-        break;
-       }
-      default:
-       {
-        System.out.printf("aperture %d not rectangular or curcular\n",
-			  apertureNo);
-        double size0 = in.getFVal();
-        double size1 = in.getFVal();
-        apertureList.add(apertureNo, size0, size1);
-        break;
-       }
+     case 'C':
+      double size = in.getFVal();
+      apertureList.add(apertureNo, size);
+      break;
+     case 'R':
+     {
+      double size0 = in.getFVal();
+      double size1 = in.getFVal();
+      apertureList.add(apertureNo, size0, size1);
+      break;
+     }
+     case 'O':
+     {
+      double size0 = in.getFVal();
+      double size1 = in.getFVal();
+      apertureList.add(apertureNo, size0, size1, ApertureList.Aperture.OVAL);
+      break;
+     }
+     default:
+     {
+      System.out.printf("aperture %d not rectangular or circular\n",
+			apertureNo);
+      double size0 = in.getFVal();
+      double size1 = in.getFVal();
+      apertureList.add(apertureNo, size0, size1);
+      break;
+     }
      }
     }
    }
@@ -719,7 +744,8 @@ public class GDraw
        if (currentAperture != null)
        {
 	TrackList.Track trk = trackList.add(new Pt(lastX, lastY),
-					    new Pt(xVal, yVal), currentAperture);
+					    new Pt(xVal, yVal),
+					    currentAperture);
 	lastX = xVal;
 	lastY = yVal;
 	int x = xVal + apW;
@@ -774,6 +800,11 @@ public class GDraw
 	apH = apW;
        }
        else if (currentAperture.type == ApertureList.Aperture.SQUARE)
+       {
+	apW = ((int) (currentAperture.val1 * GDraw.SCALE));
+	apH = ((int) (currentAperture.val2 * GDraw.SCALE));
+       }
+       else if (currentAperture.type == ApertureList.Aperture.OVAL)
        {
 	apW = ((int) (currentAperture.val1 * GDraw.SCALE));
 	apH = ((int) (currentAperture.val2 * GDraw.SCALE));

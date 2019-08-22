@@ -6,6 +6,8 @@ package gdraw;
 
 import gdraw.Util.Pt;
 
+import java.awt.Polygon;
+
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -17,8 +19,10 @@ import java.io.PrintWriter;
 
 import java.text.SimpleDateFormat;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.TreeSet;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -44,8 +48,14 @@ public class GDraw
  PrintWriter dbg = null;
  PrintWriter csv;
  String baseFile;
+ PolygonList polygonList;
+ TreeSet<Pt> verticies = new TreeSet<Pt>(new Util.PtCompare());
  ApertureList apertureList;
- TrackList trackList;
+ TrackList trackList = null;
+ TrackPoints trackPoints = null;
+ int pointNum = 0;
+ TrackPointList trackPointList = new TrackPointList();
+ int trackListNum = 0;
  PadList padList;
  Image image;
  int xMax = 0;
@@ -56,9 +66,9 @@ public class GDraw
  boolean dbgFlag;
  String tracks = "tracks";
  String rapid = "rapid";
- String trackNum = "trackNum";
+ String trackNum = "0trackNum";
  String pads = "pads";
- String padNum = "padNum";
+ String padNum = "0padNum";
  String outline = "outline";
  boolean dxf = false;
  SimpleDateFormat sdf = new SimpleDateFormat("EEE LLL dd HH:mm:ss yyyy");
@@ -140,7 +150,8 @@ public class GDraw
   * @param bmp
   */
  @SuppressWarnings("CallToPrintStackTrace")
- public void process(String inputFile, boolean r, boolean m, double x, double y,
+ public void process(String inputFile, boolean r, boolean m,
+		     double x, double y,
 		     boolean debug, boolean dxfFlag, boolean bmp)
  {
   rotate = r;
@@ -149,6 +160,7 @@ public class GDraw
   ySize = (int) (y * SCALE);
   dxf = dxfFlag;
   dbgFlag = debug;
+  polygonList = new PolygonList(this);
   apertureList = new ApertureList(this);
   padList = new PadList(this);
   trackList = new TrackList(this);
@@ -158,6 +170,44 @@ public class GDraw
   if (fIn.isFile())
   {
    readInput();
+
+   if (dbgFlag)
+   {
+    dbg.printf("\ntrack point list %2d\n", trackPointList.size());
+   }
+   int tP0 = 0;
+   for (TrackPoints tP : trackPointList)
+   {
+    if (dbgFlag)
+    {
+     ApertureList.Aperture ap = tP.aperture;
+     dbg.printf("trackPoints %3d size %4d ap %2d size %6.4f",
+		tP0, tP.size(), ap.index, ap.val1);
+    }
+    int found = 0;
+    for (TrackVertex tV : tP)
+    {
+     if (verticies.contains(tV))
+     {
+      found += 1;
+     }
+    }
+    if (dbgFlag)
+    {
+     dbg.printf(" found %4d\n", found);
+    }
+    if (found == 0)
+    {
+     Pt lastPt = (Pt) tP.get(0);
+     for (int t0 = 1; t0 < tP.size(); t0++)
+     {
+      TrackVertex tV = tP.get(t0);
+      trackList.add(lastPt, (Pt) tV, tP.aperture);
+      lastPt = (Pt) tV;
+     }
+    }
+    tP0 += 1;
+   }
 
    if (rotate)
    {
@@ -279,7 +329,77 @@ public class GDraw
 
    image.checkOverlap();
 
-   image.padTrack();
+   // image.padTrack();
+
+   if (dbgFlag)
+   {
+    dbg.printf("\npolygons\n");
+   }
+   i = 0;
+   for (PolygonList.Polygon polygon : polygonList)
+   {
+    if (dbgFlag)
+    {
+     dbg.printf("%2d size %3d\n", i, polygon.size());
+    }
+    i += 1;
+
+    int nPoints = polygon.size() - 1;
+    int[] xPoints = new int[nPoints];
+    int[] yPoints = new int[nPoints];
+    int xFirst = 0;
+    int yFirst = 0;
+/*
+    int xPrev = -1;
+    int yPrev = -1;
+*/
+    int iDest = 0;
+    for (int i0 = 0; i0 < nPoints; i0++)
+    {
+     Pt pt = polygon.get(i0);
+     int x0 = (int) Math.round(pt.x / scale);
+     int y0 = (int) Math.round(pt.y / scale);
+/*
+     if ((x0 != xPrev)
+     ||  (y0 != yPrev))
+     {
+      if (iDest == 0)
+      {
+       xFirst = x0;
+       yFirst = y0;
+      }
+      else
+      {
+       if ((x0 == xFirst)
+       &&  (y0 == yFirst))
+       {
+	break;
+       }
+      }
+*/
+      xPoints[iDest] = x0;
+      yPoints[iDest] = y0;
+//      xPrev = x0;
+//      yPrev = y0;
+      iDest += 1;
+//     }
+    }
+/*
+    nPoints = iDest;
+    for (int i0 = 0; i0 < nPoints; i0++)
+    {
+     if (dbgFlag)
+     {
+      dbg.printf("%2d size %3d\n", i, nPoints);
+      dbg.printf("%3d x %5d y %5d\n", i0, xPoints[i0], yPoints[i0]);
+     }
+    }
+*/
+    Polygon p = new Polygon(xPoints, yPoints, nPoints);
+    image.fillPolygon(p);
+   }
+   
+//   image.write(baseFile + "a");
 
    image.orderPads(true);
 
@@ -295,9 +415,9 @@ public class GDraw
    }
 */
 
-   image.scanPads();
+//   image.scanPads();
    
-   image.adjacentFix();
+//   image.adjacentFix();
 
 //   image.getData();
 //   padList.check(image);
@@ -327,6 +447,7 @@ public class GDraw
  public void boardSize(String fileName)
  {
   Pattern p = Pattern.compile("[Xx]?([0-9]*)[Yy]?([0-9]*)");
+  boolean metric = true;
 
   File f = new File(fileName);
   if (f.isFile())
@@ -336,6 +457,7 @@ public class GDraw
     String line;
     while ((line = in.readLine()) != null)
     {
+//     System.out.printf("%s\n", line);
      if (line.startsWith("%"))
      {
       continue;
@@ -348,10 +470,18 @@ public class GDraw
       if (xStr.length() != 0)
       {
        int x = Integer.parseInt(xStr);
-       if (x > 100000)
+       if (!metric)
        {
-	x /= 100;
+	if (x > 100000)
+	{
+	 x /= 100;
+	}
        }
+       else
+       {
+	x /= 2540;
+       }
+
        if (x > xMax)
        {
 	xMax = x;
@@ -360,10 +490,18 @@ public class GDraw
       if (yStr.length() != 0)
       {
        int y = Integer.parseInt(yStr);
-       if (y > 100000)
+       if (!metric)
        {
-	y /= 100;
+	if (y > 100000)
+	{
+	 y /= 100;
+	}
        }
+       else
+       {
+	y /= 2540;
+       }
+	 
        if (y > yMax)
        {
 	yMax = y;
@@ -428,6 +566,7 @@ public class GDraw
     d1 = new Dxf();
     if (d1.init(baseFile + "1.dxf"))
     {
+     d1.layer("0", Dxf.BLACK);
      d1.layer(tracks, Dxf.RED);
      d1.layer(trackNum, Dxf.RED);
      d1.layer(pads, Dxf.BLUE);
@@ -643,6 +782,49 @@ public class GDraw
   out.printf("\n");
  }
 
+ public class Vertex extends Pt
+ {
+  int polygon;
+  int vertex;
+
+  public Vertex(int x, int y, int polygon, int vertex)
+  {
+   super(x, y);
+   this.polygon = polygon;
+   this.vertex = vertex;
+  }
+ }
+
+ public class TrackVertex extends Pt
+ {
+  int track;
+  int vertex;
+
+  public TrackVertex(int x, int y, int track, int vertex)
+  {
+   super(x, y);
+   this.track = track;
+   this.vertex = vertex;
+  }
+ }
+
+ public class TrackPoints extends ArrayList<GDraw.TrackVertex>
+ {
+  int index;
+  ApertureList.Aperture aperture;
+
+  public TrackPoints(int index, ApertureList.Aperture aperture)
+  {
+   super();
+   this.index = index;
+   this.aperture = aperture;
+  }
+ }
+
+ public class TrackPointList extends ArrayList<GDraw.TrackPoints>
+ {
+ }
+
  /**
   * Read input file
   */
@@ -658,13 +840,21 @@ public class GDraw
   ApertureList.Aperture currentAperture = null;
   int apW = 0;
   int apH = 0;
+  boolean metric = true;
+  Vertex firstPt = null;
+  PolygonList.Polygon polygon = null;
+  boolean polygonMode = false;
+  int vertexNum = 0;
+  int polygonNum = 0;
+  int lineNum = 0;
 
   InputBuf in = new InputBuf(fIn);
   while (in.read())
   {
    if (dbgFlag)
    {
-    dbg.printf("%s\n", in.line);
+    dbg.printf("%5d %s", lineNum, in.line);
+    lineNum += 1;
     dbg.flush();
    }
    if (in.check('%'))
@@ -678,12 +868,21 @@ public class GDraw
      {
      case 'C':
       double size = in.getFVal();
+      if (metric)
+      {
+       size /= 25.4;
+      }
       apertureList.add(apertureNo, size);
       break;
      case 'R':
      {
       double size0 = in.getFVal();
       double size1 = in.getFVal();
+      if (metric)
+      {
+       size0 /= 25.4;
+       size1 /= 25.4;
+      }
       apertureList.add(apertureNo, size0, size1);
       break;
      }
@@ -691,6 +890,11 @@ public class GDraw
      {
       double size0 = in.getFVal();
       double size1 = in.getFVal();
+      if (metric)
+      {
+       size0 /= 25.4;
+       size1 /= 25.4;
+      }
       apertureList.add(apertureNo, size0, size1, ApertureList.Aperture.OVAL);
       break;
      }
@@ -700,6 +904,11 @@ public class GDraw
 			apertureNo);
       double size0 = in.getFVal();
       double size1 = in.getFVal();
+      if (metric)
+      {
+       size0 /= 25.4;
+       size1 /= 25.4;
+      }
       apertureList.add(apertureNo, size0, size1);
       break;
      }
@@ -713,59 +922,176 @@ public class GDraw
      if (in.check('G'))
      {
       gCode = in.getVal();
+      if (gCode == 36)		/* if polygon mode start */
+      {
+       if (dbgFlag)
+       {
+	dbg.printf(" start region %2d", polygonNum);
+       }
+       polygonMode = true;
+       vertexNum = 0;
+      }
+      else if (gCode == 37)	/* if end of polygon mode */
+      {
+       if (dbgFlag)
+       {
+	dbg.printf(" end region p %2d v %3d size %3d (%6d, %6d) (%6d, %6d)",
+		   polygonNum, vertexNum, polygon.size(),
+		   firstPt.x, firstPt.y, xVal, yVal);
+       }
+       polygonMode = false;
+       polygonNum += 1;
+      }
      }
      else if (in.check('X'))
      {
       xVal = in.getVal();
-//      if (xVal > 100000)
+      if (!metric)
       {
-       xVal /= 100;
+//      if (xVal > 100000)
+       {
+	xVal /= 100;
+       }
+       xVal = ((xVal + 5) / 10) * 10;
       }
-      xVal = ((xVal + 5) / 10) * 10;
+      else
+      {
+       xVal /= 2540;
+      }
      }
      else if (in.check('Y'))
      {
       yVal = in.getVal();
-//      if (yVal > 100000)
+      if (!metric)
       {
-       yVal /= 100;
-      }
-      yVal = ((yVal + 5) / 10) * 10;
+//      if (yVal > 100000)
+       {
+	yVal /= 100;
+       }
+       yVal = ((yVal + 5) / 10) * 10;
 //      if (mirror)
 //      {
 //       yVal = ySize - yVal;
 //      }
+      }
+      else
+      {
+       yVal /= 2540;
+      }
      }
      else if (in.check('D'))
      {
       dCode = in.getVal();
-      if (dCode == 1)
+      if (dCode == 1)		/* move to location */
       {
-       if (currentAperture != null)
+       if (!polygonMode)	/* if not polygon mode */
        {
-	TrackList.Track trk = trackList.add(new Pt(lastX, lastY),
-					    new Pt(xVal, yVal),
-					    currentAperture);
-	lastX = xVal;
-	lastY = yVal;
-	int x = xVal + apW;
-	if (x > xMax)
+	if (currentAperture != null)
 	{
-	 xMax = x;
-	}
-	int y = yVal + apH;
-	if (y > yMax)
-	{
-	 yMax = y;
+	 if ((xVal == lastX)
+         &&  (yVal == lastY))
+	  continue;
+	 
+	 TrackVertex trackVertex = 
+	  new TrackVertex(xVal, yVal, trackListNum, pointNum);
+	 if (dbgFlag)
+	 {
+	  dbg.printf(" t %3d v %4d x %6d y %6d",
+		     trackListNum, pointNum, xVal, yVal);
+	 }
+	 pointNum += 1;
+	 trackPoints.add(trackVertex);
+
+//	 TrackList.Track trk = trackList.add(new Pt(lastX, lastY),
+//					     new Pt(xVal, yVal),
+//					     currentAperture);
+	 lastX = xVal;
+	 lastY = yVal;
+	 int x = xVal + apW;
+	 if (x > xMax)
+	 {
+	  xMax = x;
+	 }
+
+	 int y = yVal + apH;
+	 if (y > yMax)
+	 {
+	  yMax = y;
+	 }
 	}
        }
+       else			/* if polygon mode */
+       {
+	Vertex v = new Vertex(xVal, yVal, polygonNum, vertexNum);
+	if (verticies.add(v))	/* if vertex added */
+	{
+	}
+	if ((xVal != lastX)
+        ||  (yVal != lastY))
+	{
+	 polygon.add(v);
+	 if (dbgFlag)
+	 {
+	  dbg.printf(" p %2d v %4d x %6d y %6d",
+		     polygonNum, vertexNum, xVal, yVal);
+	 }
+	 vertexNum += 1;
+	}
+	if ((vertexNum > 1)
+	&&  firstPt.equals(v))
+	{
+	 if (dbgFlag)
+	 {
+	  dbg.printf(" closed");
+	 }
+	}
+	lastX = xVal;
+	lastY = yVal;
+       }
       }
-      else if (dCode == 2)
+      else if (dCode == 2)	/* set location */
       {
-       lastX = xVal;
-       lastY = yVal;
+       if (!polygonMode)	/* if not polygon mode */
+       {
+	lastX = xVal;
+	lastY = yVal;
+	if (trackPoints != null)
+	{
+	 trackListNum += 1;
+	}
+	pointNum = 0;
+	trackPoints = new TrackPoints(trackListNum, currentAperture);
+	trackPointList.add(trackPoints);
+	TrackVertex trackVertex = 
+	 new TrackVertex(xVal, yVal, trackListNum, pointNum);
+	if (dbgFlag)
+	{
+	 dbg.printf(" t %3d v %4d x %6d y %6d",
+		    trackListNum, pointNum, xVal, yVal);
+	}
+	pointNum += 1;
+	trackPoints.add(trackVertex);
+       }
+       else			/* if polygon mode */
+       {
+	if (dbgFlag)
+	{
+	 dbg.printf(" p %2d v %4d x %6d y %6d",
+		    polygonNum, vertexNum, xVal, yVal);
+	}
+//	polygon = new PolygonList.Polygon();
+//	polygonList.add(polygon);
+	polygon = polygonList.newPolygon();
+	Vertex v = new Vertex(xVal, yVal, polygonNum, vertexNum);
+	vertexNum += 1;
+	verticies.add(v);
+	polygon.add(v);
+	firstPt = v;
+	lastX = xVal;
+	lastY = yVal;
+       }
       }
-      else if (dCode == 3)
+      else if (dCode == 3)	/* add pad */
       {
        if ((xVal < 0)
        ||  (yVal < 0))
@@ -775,6 +1101,10 @@ public class GDraw
        if (currentAperture != null)
        {
 	PadList.Pad pad = padList.add(new Pt(xVal, yVal), currentAperture);
+	if (dbgFlag)
+	{
+	 dbg.printf(" pad %3d x %6d y %6d", pad.index, xVal, yVal);
+	}
 	int x = xVal + apW;
 	if (x > xMax)
 	{
@@ -787,7 +1117,7 @@ public class GDraw
 	}
        }
       }
-      else if (dCode >= 10)
+      else if (dCode >= 10)	/* set aperture */
       {
        currentAperture = apertureList.get(dCode);
        if (currentAperture == null)
@@ -820,6 +1150,10 @@ public class GDraw
       in.skip();
      }
     } while (!in.done());
+   }
+   if (dbgFlag)
+   {
+    dbg.printf("\n");
    }
   }
   in.close();

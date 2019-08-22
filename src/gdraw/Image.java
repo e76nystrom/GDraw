@@ -8,6 +8,7 @@ package gdraw;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
+import java.awt.Polygon;
 
 import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
@@ -381,6 +382,16 @@ public class Image
   g.draw(p);
  }
 */
+
+ public void fillPolygon(Polygon p)
+ {
+  g.setColor(new Color(TRACK));
+//  BasicStroke stroke = new BasicStroke(1.0f, BasicStroke.CAP_ROUND,
+//				       BasicStroke.JOIN_MITER);
+//  g.setStroke(stroke);
+//  g.drawPolygon(p);
+  g.fillPolygon(p);
+ }
 
  public void drawTracks()
  {
@@ -2592,6 +2603,7 @@ public class Image
 
   int count = 0;
   int len = 0;
+  int totalLen = 0;
   int leg = 0;
   int ofs = 0;
   int i0Last = i0;
@@ -2600,6 +2612,14 @@ public class Image
   int lastY = 0;
   while (true)
   {
+   if (i0 <= 0)
+   {
+    if (dbgFlag)
+    {
+     dbg.printf("index 0\n");
+     dbg.flush();
+    }
+   }
    switch (d)
    {
    case XPOS:
@@ -2835,20 +2855,23 @@ public class Image
        {
 	if (dbgFlag)
 	{
-	 dbg.printf("add segment\n");
+	 dbg.printf("add segment x %5d y %6d\n", x, y);
 	}
-	comment = "(e)";
-	if (!probeFlag)
+	if ((x1 > 0) && (y1 > 0))
 	{
-	 seg.add(x1, y1, String.format(g1Fmta + " f%s %s)\n",
-				       c(x1), c(y1), lLinearFeed, comment));
-	}
-	else
-	{
-	 double offset = probe.interpolate(x1, y1);
-	 seg.add(x1, y1, String.format(g1Fmta + "z%s f%s %s\n",
-				       c(x1), c(y1), depth(offset),
-				       lLinearFeed, comment));
+	 comment = "(e)";
+	 if (!probeFlag)
+	 {
+	  seg.add(x1, y1, String.format(g1Fmta + " f%s %s)\n",
+					c(x1), c(y1), lLinearFeed, comment));
+	 }
+	 else
+	 {
+	  double offset = probe.interpolate(x1, y1);
+	  seg.add(x1, y1, String.format(g1Fmta + "z%s f%s %s\n",
+					c(x1), c(y1), depth(offset),
+					lLinearFeed, comment));
+	 }
 	}
        }
       }
@@ -2869,6 +2892,7 @@ public class Image
 
     i0Last = i0;
     dLast = D.INVALID;
+    totalLen += len;
     len = 0;
     leg++;
     continue;
@@ -2883,7 +2907,7 @@ public class Image
     y = i0Last / w0;
     if (dbgFlag)
     {
-     dbg.printf("dir %d %4d %4d x %5d y %5d\n",
+     dbg.printf("dir %d count %4d len %4d x %5d y %5d\n",
 		dLast.ordinal(), count, len, x, y);
     }
     if (output)
@@ -2926,6 +2950,7 @@ public class Image
      }
     }
     leg++;
+    totalLen += len;
     len = 0;
     dLast = d;
    }
@@ -2937,8 +2962,10 @@ public class Image
    data[i0] = SHORT;
    if (dbgFlag)
    {
-    dbg.printf("short %10d\n", i0);
+    dbg.printf("short totalLen %3d %10d x %5d y %5d\n",
+	       totalLen, i0, i0 % w0, i0 / w0);
    }
+   remove = true;
   }
 
 //  for (int i = 1; i < 3; i++)
@@ -3010,7 +3037,7 @@ public class Image
   {
    if (dbgFlag)
    {
-    dbg.printf("remove segment\n");
+    dbg.printf("remove segment %d\n", seg.num);
    }
    segList.remove(seg);
   }

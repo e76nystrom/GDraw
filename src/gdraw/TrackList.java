@@ -63,7 +63,7 @@ public class TrackList extends ArrayList<TrackList.Track>
   if (!p0.equals(p1))
   {
    add(t = new Track(max++, p0, p1, a));
-   t.print();
+//   t.print();
   }
   return(t);
  }

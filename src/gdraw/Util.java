@@ -5,6 +5,8 @@
 
 package gdraw;
 
+import java.util.Comparator;
+
 /*
  * Util.java
  *
@@ -17,7 +19,38 @@ package gdraw;
 public class Util
 {
 
- /**
+ public static class PtCompare implements Comparator<Util.Pt>
+ {
+  @Override
+   public int compare(Pt p0, Pt p1)
+  {
+   if (p0.x < p1.x)
+   {
+    return -1;
+   }
+   else if (p0.x > p1.x)
+   {
+    return 1;
+   }
+   else
+   {
+    if (p0.y < p1.y)
+    {
+     return -1;
+    }
+    else if (p0.y > p1.y)
+    {
+     return 1;
+    }
+    else
+    {
+     return 0;
+    }
+   }
+  }
+ }
+
+/**
   * Class for the x and y values of a point location.
   */
  public static class Pt

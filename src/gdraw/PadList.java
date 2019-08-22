@@ -47,7 +47,7 @@ public class PadList extends ArrayList<PadList.Pad>
  {
   Pad pad;
   add(pad = new Pad(max++, p, a));
-  pad.print(dbg);
+//  pad.print(dbg);
   return(pad);
  }
 

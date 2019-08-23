@@ -155,6 +155,7 @@ public class TrackList extends ArrayList<TrackList.Track>
 	       pt[0].x, pt[0].y,
 	       pt[1].x, pt[1].y,
 	       ap.index, ap.val1, len);
+    dbg.flush();
    }
   }
  }

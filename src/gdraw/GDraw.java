@@ -49,7 +49,7 @@ public class GDraw
  PrintWriter csv;
  String baseFile;
  PolygonList polygonList;
- TreeSet<Pt> verticies = new TreeSet<Pt>(new Util.PtCompare());
+ TreeSet<Pt> verticies = new TreeSet<>(new Util.PtCompare());
  ApertureList apertureList;
  TrackList trackList = null;
  TrackPoints trackPoints = null;
@@ -83,6 +83,9 @@ public class GDraw
 
  boolean variables;
  boolean metric;
+ boolean metricInput;
+
+ boolean cutLines;
  
  boolean probeFlag;
  String probeFile;
@@ -109,6 +112,16 @@ public class GDraw
  public void setMetric(boolean val)
  {
   this.metric = val;
+ }
+
+ public void setMetricInput(boolean val)
+ {
+  this.metricInput = val;
+ }
+
+ public void setCutLines(boolean val)
+ {
+  this.cutLines = val;
  }
 
  public void setProbe(boolean val, String probeFile)
@@ -181,8 +194,12 @@ public class GDraw
     if (dbgFlag)
     {
      ApertureList.Aperture ap = tP.aperture;
-     dbg.printf("trackPoints %3d size %4d ap %2d size %6.4f",
-		tP0, tP.size(), ap.index, ap.val1);
+     dbg.printf("trackPoints %3d size %4d",
+		tP0, tP.size());
+     dbg.flush();
+     dbg.printf(" ap %2d size %6.4f",
+		ap.index, ap.val1);
+     dbg.flush();
     }
     int found = 0;
     for (TrackVertex tV : tP)
@@ -293,8 +310,6 @@ public class GDraw
 
    xMax = (int) (xMax / scale);
    yMax = (int) (yMax / scale);
-//   xMax += 2;
-//   yMax += 1;
    System.out.printf("x max %4d y max %4d\n", xMax, yMax);
    image = new Image(this, xMax, yMax, scale);
    image.setVariables(variables);
@@ -329,7 +344,8 @@ public class GDraw
 
    image.checkOverlap();
 
-   // image.padTrack();
+   if (cutLines)
+    image.padTrack();
 
    if (dbgFlag)
    {
@@ -349,52 +365,15 @@ public class GDraw
     int[] yPoints = new int[nPoints];
     int xFirst = 0;
     int yFirst = 0;
-/*
-    int xPrev = -1;
-    int yPrev = -1;
-*/
-    int iDest = 0;
     for (int i0 = 0; i0 < nPoints; i0++)
     {
      Pt pt = polygon.get(i0);
      int x0 = (int) Math.round(pt.x / scale);
      int y0 = (int) Math.round(pt.y / scale);
-/*
-     if ((x0 != xPrev)
-     ||  (y0 != yPrev))
-     {
-      if (iDest == 0)
-      {
-       xFirst = x0;
-       yFirst = y0;
-      }
-      else
-      {
-       if ((x0 == xFirst)
-       &&  (y0 == yFirst))
-       {
-	break;
-       }
-      }
-*/
-      xPoints[iDest] = x0;
-      yPoints[iDest] = y0;
-//      xPrev = x0;
-//      yPrev = y0;
-      iDest += 1;
-//     }
+     xPoints[i0] = x0;
+     yPoints[i0] = y0;
     }
-/*
-    nPoints = iDest;
-    for (int i0 = 0; i0 < nPoints; i0++)
-    {
-     if (dbgFlag)
-     {
-      dbg.printf("%2d size %3d\n", i, nPoints);
-      dbg.printf("%3d x %5d y %5d\n", i0, xPoints[i0], yPoints[i0]);
-     }
-    }
-*/
+
     Polygon p = new Polygon(xPoints, yPoints, nPoints);
     image.fillPolygon(p);
    }
@@ -415,9 +394,12 @@ public class GDraw
    }
 */
 
-//   image.scanPads();
-   
-//   image.adjacentFix();
+   if (cutLines)
+   {
+    image.scanPads();
+    
+    image.adjacentFix();
+   }
 
 //   image.getData();
 //   padList.check(image);
@@ -447,7 +429,6 @@ public class GDraw
  public void boardSize(String fileName)
  {
   Pattern p = Pattern.compile("[Xx]?([0-9]*)[Yy]?([0-9]*)");
-  boolean metric = true;
 
   File f = new File(fileName);
   if (f.isFile())
@@ -470,7 +451,7 @@ public class GDraw
       if (xStr.length() != 0)
       {
        int x = Integer.parseInt(xStr);
-       if (!metric)
+       if (!metricInput)
        {
 	if (x > 100000)
 	{
@@ -490,7 +471,7 @@ public class GDraw
       if (yStr.length() != 0)
       {
        int y = Integer.parseInt(yStr);
-       if (!metric)
+       if (!metricInput)
        {
 	if (y > 100000)
 	{
@@ -840,7 +821,6 @@ public class GDraw
   ApertureList.Aperture currentAperture = null;
   int apW = 0;
   int apH = 0;
-  boolean metric = true;
   Vertex firstPt = null;
   PolygonList.Polygon polygon = null;
   boolean polygonMode = false;
@@ -853,7 +833,7 @@ public class GDraw
   {
    if (dbgFlag)
    {
-    dbg.printf("%5d %s", lineNum, in.line);
+    dbg.printf("%5d %-24s", lineNum, in.line);
     lineNum += 1;
     dbg.flush();
    }
@@ -868,7 +848,7 @@ public class GDraw
      {
      case 'C':
       double size = in.getFVal();
-      if (metric)
+      if (metricInput)
       {
        size /= 25.4;
       }
@@ -878,7 +858,7 @@ public class GDraw
      {
       double size0 = in.getFVal();
       double size1 = in.getFVal();
-      if (metric)
+      if (metricInput)
       {
        size0 /= 25.4;
        size1 /= 25.4;
@@ -890,7 +870,7 @@ public class GDraw
      {
       double size0 = in.getFVal();
       double size1 = in.getFVal();
-      if (metric)
+      if (metricInput)
       {
        size0 /= 25.4;
        size1 /= 25.4;
@@ -904,7 +884,7 @@ public class GDraw
 			apertureNo);
       double size0 = in.getFVal();
       double size1 = in.getFVal();
-      if (metric)
+      if (metricInput)
       {
        size0 /= 25.4;
        size1 /= 25.4;
@@ -946,7 +926,7 @@ public class GDraw
      else if (in.check('X'))
      {
       xVal = in.getVal();
-      if (!metric)
+      if (!metricInput)
       {
 //      if (xVal > 100000)
        {
@@ -962,7 +942,7 @@ public class GDraw
      else if (in.check('Y'))
      {
       yVal = in.getVal();
-      if (!metric)
+      if (!metricInput)
       {
 //      if (yVal > 100000)
        {
@@ -1001,6 +981,14 @@ public class GDraw
 	 }
 	 pointNum += 1;
 	 trackPoints.add(trackVertex);
+	 if (trackPoints.aperture == null)
+	 {
+	  trackPoints.aperture = currentAperture;
+	 }
+	 else if (trackPoints.aperture != currentAperture)
+	 {
+	  System.out.printf("aperture changed\n");
+	 }
 
 //	 TrackList.Track trk = trackList.add(new Pt(lastX, lastY),
 //					     new Pt(xVal, yVal),
@@ -1060,7 +1048,7 @@ public class GDraw
 	 trackListNum += 1;
 	}
 	pointNum = 0;
-	trackPoints = new TrackPoints(trackListNum, currentAperture);
+	trackPoints = new TrackPoints(trackListNum, null);
 	trackPointList.add(trackPoints);
 	TrackVertex trackVertex = 
 	 new TrackVertex(xVal, yVal, trackListNum, pointNum);
@@ -1079,8 +1067,6 @@ public class GDraw
 	 dbg.printf(" p %2d v %4d x %6d y %6d",
 		    polygonNum, vertexNum, xVal, yVal);
 	}
-//	polygon = new PolygonList.Polygon();
-//	polygonList.add(polygon);
 	polygon = polygonList.newPolygon();
 	Vertex v = new Vertex(xVal, yVal, polygonNum, vertexNum);
 	vertexNum += 1;
@@ -1138,6 +1124,11 @@ public class GDraw
        {
 	apW = ((int) (currentAperture.val1 * GDraw.SCALE));
 	apH = ((int) (currentAperture.val2 * GDraw.SCALE));
+       }
+       if (dbgFlag)
+       {
+	dbg.printf(" ap %d %s w %5d h %5d",
+		   dCode, currentAperture.typeStr, apW, apH);
        }
       }
      }

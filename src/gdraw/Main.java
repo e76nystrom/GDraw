@@ -28,6 +28,7 @@ public class Main
  {
   boolean variables = false;
   boolean metric = false;
+  boolean metricInput = false;
   boolean probe = false;
   String probeFile = "";
   double xSize = 0.0;
@@ -37,8 +38,9 @@ public class Main
   boolean debug = false;
   boolean dxf = false;
   boolean bmp = false;
+  boolean cutLines = true;
   String inputFile = "";
-  Pattern pOption = Pattern.compile("-([a-zA-Z])");
+  Pattern pOption = Pattern.compile("-([a-zA-Z])=?([01]?)");
   Pattern p1Option = Pattern.compile("--([a-zA-Z]*)=?(\\S*)");
   String line = "";
   
@@ -91,7 +93,7 @@ public class Main
     String option = sc.next(pOption);
     MatchResult m = sc.match();
     int count = m.groupCount();
-    if (count == 1)
+    if (count <= 2)
     {
      char c = m.group(1).charAt(0);
      // System.out.printf("%c\n", c);
@@ -136,6 +138,25 @@ public class Main
       break;
      case 'p':			/* read probe data */
       probe = true;
+     case 'M':			/* metric input */
+      metricInput = true;
+     case 't':			/* add cutlines around pads */
+      String val = m.group(2);
+      if (val.length() == 0)
+      {
+       cutLines = true;
+      }
+      else
+      {
+       if (val.equals("0"))
+       {
+	cutLines = false;
+       }
+       else if (val.equals("1"))
+       {
+	cutLines = true;
+       }
+      }
      default:
       break;
      }
@@ -220,6 +241,8 @@ public class Main
    GDraw gdraw = new GDraw();
    gdraw.setVariables(variables);
    gdraw.setMetric(metric);
+   gdraw.setMetricInput(metricInput);
+   gdraw.setCutLines(cutLines);
    gdraw.setProbe(probe, probeFile);
    gdraw.setDepth(depth);
    gdraw.setRetract(retract);

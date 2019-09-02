@@ -368,6 +368,8 @@ public class GDraw
     for (int i0 = 0; i0 < nPoints; i0++)
     {
      Pt pt = polygon.get(i0);
+     if (mirror)
+      pt.mirror(xSize, ySize);
      int x0 = (int) Math.round(pt.x / scale);
      int y0 = (int) Math.round(pt.y / scale);
      xPoints[i0] = x0;
